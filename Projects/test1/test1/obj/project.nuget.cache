@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "14khPUqyWMc=",
+  "success": true,
+  "projectFilePath": "/Users/minhthu/Projects/test1/test1/test1.csproj",
+  "expectedPackageFiles": [
+    "/Users/minhthu/.nuget/packages/microsoft.netcore.app.ref/6.0.36/microsoft.netcore.app.ref.6.0.36.nupkg.sha512",
+    "/Users/minhthu/.nuget/packages/microsoft.aspnetcore.app.ref/6.0.36/microsoft.aspnetcore.app.ref.6.0.36.nupkg.sha512",
+    "/Users/minhthu/.nuget/packages/microsoft.netcore.app.host.osx-arm64/6.0.36/microsoft.netcore.app.host.osx-arm64.6.0.36.nupkg.sha512"
+  ],
+  "logs": []
+}
