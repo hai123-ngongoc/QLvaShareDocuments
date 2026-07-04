@@ -122,8 +122,89 @@ const profile = async (req, res) => {
     }
 }
 
+// change password
+const changePassword = async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+
+        const user = await User.findByPk(req.user.id);
+
+        const check = await bcrypt.compare(oldPassword, user.password);
+
+        if (!check) {
+            return res.status(400).json({ message: 'Mật khẩu cũ không đúng.' });
+        }
+
+        if (!oldPassword || !newPassword) {
+            return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin.' });
+        }
+
+        if (oldPassword === newPassword) {
+            return res.status(400).json({ message: 'Mật khẩu mới không được trùng với mật khẩu cũ.' });
+        }
+
+        const hash = await bcrypt.hash(newPassword, 10);
+
+        await user.update({ password: hash });
+
+        res.json({
+            success: true,
+            message: 'Đổi mật khẩu thành công.'
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Có lỗi xảy ra khi đổi mật khẩu.' });
+    }
+}
+
+//admin lấy danh sách user
+const getAllUsers = async (req, res) => {
+    try {
+        const list = await User.findAll({
+            attributes: {
+                exclude: ['password']
+            }
+        });
+
+        res.json({
+            success: true,
+            total: list.length,
+            data: list
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: 'Có lỗi xảy ra khi lấy danh sách người dùng.' });
+    }
+}
+
+// delete user
+const deleteUser = async (req, res) => {
+    try {
+        const user = await User.findByPk(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Người dùng không tồn tại.' });
+        }
+
+        if (req.user.id === req.params.id) {
+            return res.status(400).json({ message: 'Bạn không thể tự xóa tài khoản của mình.' });
+        }
+
+        await user.destroy();
+
+        res.json({
+            success: true,
+            message: 'Xóa thành công.'
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Có lỗi xảy ra khi xóa người dùng.' });
+    }
+}
+
 module.exports = {
     register,
     login,
-    profile
+    profile,
+    changePassword,
+    getAllUsers,
+    deleteUser
 };

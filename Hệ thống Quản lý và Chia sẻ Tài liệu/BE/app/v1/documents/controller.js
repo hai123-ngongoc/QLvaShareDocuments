@@ -1,6 +1,7 @@
 const Document = require('../../../model/documents');
 const {viewList, viewItem} = require('./view');
 const createError = require('http-errors');
+const path = require('path');
 
 //danh sách tài liệu
 const list = async (req, res, next) => {
@@ -30,7 +31,15 @@ const get = async (req, res, next) => {
 //thêm tài liệu
 const create = async (req, res, next) => {
     try {
-        const { title, description, file_url, file_type, course_id, user_id, status } = req.body;
+        console.log("Request body:", req.body);
+        console.log("Request file:", req.file);
+
+        const { title, description, course_id, user_id, status } = req.body;
+
+        const file_url = req.file ? `/uploads/${req.file.filename}` : null;
+
+        const file_type = req.file ? req.file.mimetype : null;
+
         const document = await Document.create({
             title,
             description,
@@ -42,6 +51,13 @@ const create = async (req, res, next) => {
         });
         return res.status(201).json({id: document.id});
     } catch (error) {
+        console.log("=================");
+        console.log(error.parent);
+        console.log("MESSAGE:", error.parent?.sqlMessage);
+        console.log("CODE:", error.parent?.code);
+        console.log("SQL:", error.parent?.sql);
+        console.log("=================");
+        
         next(error);
     }
 }
@@ -91,10 +107,34 @@ const update = async (req, res, next) => {
     }
 }
 
+const download = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const document = await Document.findByPk(id);
+
+        if (!document) {
+            return res.status(404).json({ message: 'Tài liệu không tồn tại' });
+        }
+
+        const filePath = path.join(
+            __dirname, 
+            '../../../uploads', 
+            document.file_url.replace('/uploads/', '')
+        );
+
+        res.download(filePath);
+
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     list,
     get,
     create,
     remove,
-    update
+    update,
+    download
 };

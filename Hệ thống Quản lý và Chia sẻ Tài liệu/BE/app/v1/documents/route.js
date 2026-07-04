@@ -1,5 +1,6 @@
 const {Router} = require('express');
-const {list, get, create, remove, update} = require('./controller');
+const {list, get, create, remove, update, download} = require('./controller');
+const upload = require('../middleware/upload');
 
 const route = new Router();
 
@@ -9,16 +10,16 @@ route.get('/', list,);
 //lấy chi tiết tài liệu
 route.get('/:id', get,);
 
-//lấy danh sách tài liệu theo tên
-// route.get('/:name', get,);
-
 //thêm tài liệu mới
-route.post('/', create,);
+// route.post('/', create,);
+route.post("/", upload.single("file"), create);
 
 //xóa tài liệu
 route.delete('/:id', remove,);
 
 //cập nhật tài liệu
 route.put('/:id', update,);
+
+route.get("/download/:id", download);
 
 module.exports = route;
