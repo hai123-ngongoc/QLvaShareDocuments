@@ -1,7 +1,9 @@
 require('./bootstrap');
+require('./model/associations');
 
 const express = require('express');
 const cors = require('cors');
+const v1 = require('./app/v1/route')
 const bodyParser = require('body-parser');
 
 const router = require('./app/route');
@@ -13,6 +15,7 @@ const path = require('path');
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use('/v1', v1);
 
 // app.use(bodyParser.json());
 // app.use(bodyParser.urlencoded({ extended: true }));
