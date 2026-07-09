@@ -22,7 +22,8 @@ const list = async (req, res, next) => {
 //thêm đánh giá
 const create = async (req, res, next) => {
    try {
-        const { user_id, document_id, rating, comment } = req.body;
+        const { document_id, rating, comment } = req.body;
+        const user_id = req.user.id;
 
         //ktra và đánh giá chưa
         const exist = await Rating.findOne({
@@ -34,6 +35,11 @@ const create = async (req, res, next) => {
 
         if (exist) {
             return res.status(400).json({ message: 'Bạn đã đánh giá tài liệu này.' });
+        }
+
+        //ktr số sao
+        if (rating < 1 || rating > 5) {
+            return res.status(400).json({ message: 'Số sao phải trong khoáng 1-5.' });
         }
 
         const newRating = await Rating.create({
@@ -56,10 +62,19 @@ const update = async (req, res, next) => {
         const { id } = req.params;
         const { rating, comment } = req.body;
 
-        const item = await Rating.findByPk(id);
+        const item = await Rating.findOne({
+            where: {
+                id,
+                user_id: req.user.id
+            }
+        });
 
         if (!item) {
             throw createError(404, 'Rating not found');
+        }
+
+        if (rating < 1 || rating > 5) {
+            return res.status(400).json({ message: 'Số sao phải trong khoáng 1-5.' });
         }
 
         item.rating = rating ?? item.rating;
@@ -79,7 +94,17 @@ const remove = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        const item = await Rating.findByPk(id);
+        console.log("Rating ID:", req.params.id);
+        console.log("User ID:", req.user.id);
+
+        const item = await Rating.findOne({
+            where: {
+                id,
+                user_id: req.user.id
+            }
+        });
+
+        console.log(item);
 
         if (!item) {
             throw createError(404, 'Rating not found');
@@ -87,7 +112,7 @@ const remove = async (req, res, next) => {
 
         await item.destroy();
 
-        return res.status(200).json({message: "Xóa đánh giá thông."});
+        return res.status(200).json({message: "Xóa đánh giá thành công."});
 
     } catch (error) {
         next(error);

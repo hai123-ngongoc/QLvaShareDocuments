@@ -1,6 +1,9 @@
 const Document = require('./documents');
 const Course = require('./courses');
 const Rating = require('./rating');
+const Download = require('./downloads');
+const User = require('./auth');
+const Favorite = require('./favorites');
 
 Document.belongsTo(Course, {
     foreignKey: 'course_id',
@@ -17,8 +20,51 @@ Course.hasMany(Document, {
     as: 'documents'
 });
 
+Document.hasMany(Download, { 
+    foreignKey: 'document_id',
+    as: 'downloads'
+});
+
+Download.belongsTo(Document, { 
+    foreignKey: 'document_id',
+    as: 'document'
+});
+
+User.hasMany(Download, { 
+    foreignKey: 'user_id',
+    as: 'downloads'
+});
+
+Download.belongsTo(User, { 
+    foreignKey: 'user_id',
+    as: 'user'
+});
+
+Document.hasMany(Favorite, { 
+    foreignKey: 'document_id',
+    as: 'favorites'
+});
+
+Favorite.belongsTo(Document, { 
+    foreignKey: 'document_id',
+    as: 'document'
+});
+
+User.hasMany(Favorite, { 
+    foreignKey: 'user_id',
+    as: 'favorites'
+});
+
+Favorite.belongsTo(User, { 
+    foreignKey: 'user_id',
+    as: 'user'
+});
+
 module.exports = { 
     Document, 
     Course,
-    Rating
+    Rating,
+    User,
+    Download,
+    Favorite
 };

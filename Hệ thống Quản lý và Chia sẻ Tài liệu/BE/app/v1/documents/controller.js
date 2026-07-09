@@ -5,6 +5,7 @@ const path = require('path');
 const { Op } = require('sequelize');
 // console.log(Op.like);
 const Course = require('../../../model/courses');
+const Download = require('../../../model/downloads');
 const Rating = require('../../../model/rating');
 const { fn, col } = require('sequelize');
 
@@ -43,11 +44,16 @@ const create = async (req, res, next) => {
         // console.log("Request body:", req.body);
         // console.log("Request file:", req.file);
 
-        const { title, description, course_id, user_id, status } = req.body;
+        const { title, description, course_id, status } = req.body;
+
+        const user_id = req.user.id;
 
         const file_url = req.file ? `/uploads/${req.file.filename}` : null;
 
-        const file_type = req.file ? req.file.mimetype : null;
+        const path = require('path');
+        const file_type = req.file
+            ? path.extname(req.file.originalname).replace('.', '').toLowerCase() 
+            : null;
 
         const document = await Document.create({
             title,
@@ -74,15 +80,31 @@ const create = async (req, res, next) => {
 //xóa tài liệu
 const remove = async (req, res, next) => {
     try {
+        let document;
         const { id } = req.params;
-        const document = await Document.findByPk(id);
+
+        if (req.user.role === 'admin') {
+            document = await Document.findByPk(id);
+        } else {
+            document = await Document.findOne({
+                where: {
+                    id,
+                    user_id: req.user.id
+                }
+            });
+        }
+
+        console.log("Document ID:", id);
+        console.log("JWT User:", req.user);
+        console.log("Document:", document);
 
         if (!document) {
-            throw createError(404, 'Document not found');
+            return res.status(404).json({message: 'Tài liệu không tồn tại'});
         }
 
         await document.destroy();
-        return res.status(204).json({message: 'Xóa tài liệu thành công'});
+
+        return res.status(200).json({message: 'Xóa tài liệu thành công'});
     } catch (error) {
         next(error);
     }
@@ -92,13 +114,27 @@ const remove = async (req, res, next) => {
 const update = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { title, description, file_url, file_type, course_id, user_id, status } = req.body;
+        const { title, description, file_url, file_type, course_id, status } = req.body;
 
-        const document = await Document.findByPk(id);
+        const user_id = req.user.id;
+
+        let document;
+
+        if (req.user.role === 'admin') {
+            document = await Document.findByPk(id);
+        } else {
+            document = await Document.findOne({
+                where: {
+                    id,
+                    user_id: req.user.id
+                }
+            });
+        }
 
         if (!document) {
             return res.status(404).json({message: 'Document not found'});
         }
+
 
         document.title = title ?? document.title;
         document.description = description ?? document.description;
@@ -132,10 +168,25 @@ const download = async (req, res, next) => {
             document.file_url.replace('/uploads/', '')
         );
 
+        //tăng số lần tải
         document.download_count += 1;
         await document.save();
 
-        res.download(filePath);
+        console.log(req.user.id);
+
+        //lưu lịch sử tải
+        await Download.create({
+            user_id: req.user.id    ,
+            document_id: document.id
+        });
+
+        //ktr file tài liệu co ton tai hay khong
+        const fs = require('fs');
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ message: 'File not found' });
+        }
+
+        return res.download(filePath);
 
     } catch (error) {
         next(error);
@@ -203,6 +254,49 @@ const search = async (req, res, next) => {
     }
 }
 
+//xem tài liệu
+const viewFile = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const document = await Document.findByPk(id);
+
+        if (!document) {
+            return res.status(404).json({ message: 'Tài liệu không tồn tại' });
+        }
+
+        const filePath = path.join(
+            __dirname,
+            '../../../uploads',
+            document.file_url.replace('/uploads/', '')
+        )
+        
+        if (document.file_type !== 'pdf') {
+            return res.status(400).json({
+                message: "Chỉ hỗ trợ xem trực tiếp file PDF. Vui lòng tải xuống để xem."
+            })
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline`);
+
+        //tăng số lần xem
+        document.view_count += 1;
+        await document.save();
+
+        //lưu lịch sử xem
+        await View.create({
+            user_id: req.user.id,
+            document_id: document.id
+        });
+
+        return res.sendFile(filePath);
+
+    } catch (error) {
+        next(error);
+    }
+}
+
 const getAverageRating = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -236,6 +330,7 @@ module.exports = {
     remove,
     update,
     download,
+    viewFile,
     search,
     getAverageRating
 };
