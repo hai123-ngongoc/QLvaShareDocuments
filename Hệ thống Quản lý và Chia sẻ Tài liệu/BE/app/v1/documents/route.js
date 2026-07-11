@@ -1,13 +1,15 @@
 const {Router} = require('express');
-const {list, get, create, remove, update, download, search, viewFile, getAverageRating} = require('./controller');
+const {list, get, create, remove, update, download, search, viewFile, getAverageRating, getPendingDocuments, approveDocument, rejectDocument} = require('./controller');
 const upload = require('../middleware/upload');
 const verifyToken = require('../middleware/verifyToken');
+const isAdmin = require('../middleware/isAdmin');
 
 const route = new Router();
 
 //lấy danh sách tài liệu
 route.get('/', list,);
 
+//điểm đánh giá
 route.get("/:id/average-rating", getAverageRating);
 
 //tìm kiếm tài liệu
@@ -29,6 +31,16 @@ route.put('/:id', verifyToken, update,);
 //xem tài liệu
 route.get("/:id/view", viewFile);
 
+//download tài liệu
 route.get('/download/:id', verifyToken, download);
+
+//danh sách tài liệu chờ duyet
+route.get('/admin/pending', verifyToken, isAdmin, getPendingDocuments);
+
+//duyệt
+route.put('/admin/:id/approve', verifyToken, isAdmin, approveDocument);
+
+//từ chối
+route.put('/admin/:id/reject', verifyToken, isAdmin, rejectDocument);
 
 module.exports = route;

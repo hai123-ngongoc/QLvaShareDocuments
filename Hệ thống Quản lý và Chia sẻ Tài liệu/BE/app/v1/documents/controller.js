@@ -43,14 +43,19 @@ const create = async (req, res, next) => {
     try {
         // console.log("Request body:", req.body);
         // console.log("Request file:", req.file);
+        
+        if (!req.file) {
+            return res.status(400).json({message: 'Vui lý chọn file'});
+        }
 
-        const { title, description, course_id, status } = req.body;
+        const { title, description, course_id} = req.body;
 
         const user_id = req.user.id;
 
         const file_url = req.file ? `/uploads/${req.file.filename}` : null;
 
         const path = require('path');
+
         const file_type = req.file
             ? path.extname(req.file.originalname).replace('.', '').toLowerCase() 
             : null;
@@ -62,9 +67,17 @@ const create = async (req, res, next) => {
             file_type,
             course_id,
             user_id,
-            status
+            status: "pending"
         });
-        return res.status(201).json({id: document.id});
+        
+        return res.status(201).json({
+            message: 'Đã gửi tài liệu, vui lòng chờ Admin duyệt.',
+            document: {
+                id: document.id,
+                status: document.status
+            }
+        });
+
     } catch (error) {
         // console.log("=================");
         // console.log(error.parent);
@@ -187,6 +200,65 @@ const download = async (req, res, next) => {
         }
 
         return res.download(filePath);
+
+    } catch (error) {
+        next(error);
+    }
+}
+
+//danh sách tài liệu chờ
+const getPendingDocuments = async (req, res, next) => {
+    try {
+        const documents = await Document.findAll({
+            where: {
+                status: "pending"
+            },
+            order: [["created_at", "DESC"]]
+        });
+
+        return res.status(200).json(documents);
+
+    } catch (error) {
+        next(error);
+    }
+}
+
+//duyệt tài liệu
+const approveDocument = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const document = await Document.findByPk(id);
+
+        if (!document) {
+            return res.status(404).json({ message: 'Tài liệu không tồn tại' });
+        }
+
+        document.status = "approved";
+        await document.save();
+
+        return res.status(200).json({ message: 'Đã duyệt tài liệu.' });
+
+    } catch (error) {
+        next(error);
+    }
+}
+
+//từ chối
+const rejectDocument = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const document = await Document.findByPk(id);
+
+        if (!document) {
+            return res.status(404).json({ message: 'Tài liệu không tồn tại' });
+        }
+
+        document.status = "rejected";
+        await document.save();
+
+        return res.status(200).json({ message: 'Đã từ chối tài liệu.' });
 
     } catch (error) {
         next(error);
@@ -332,5 +404,8 @@ module.exports = {
     download,
     viewFile,
     search,
-    getAverageRating
+    getAverageRating,
+    getPendingDocuments,
+    approveDocument,
+    rejectDocument
 };
