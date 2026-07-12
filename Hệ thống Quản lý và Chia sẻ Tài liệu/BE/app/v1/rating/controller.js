@@ -133,9 +133,57 @@ const remove = async (req, res, next) => {
     }
 }
 
+// Admin lấy toàn bộ danh sách đánh giá
+const listAllRatings = async (req, res, next) => {
+    try {
+        const ratings = await Rating.findAll({
+            include: [{
+                model: User,
+                as: 'user',
+                attributes: { exclude: ['password'] }
+            }],
+            order: [['created_at', 'DESC']]
+        });
+        return res.status(200).json(ratings);
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Admin xóa 1 đánh giá bất kỳ
+const adminDeleteRating = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const rating = await Rating.findByPk(id);
+        if (!rating) {
+            return res.status(404).json({ message: 'Đánh giá không tồn tại.' });
+        }
+        await rating.destroy();
+        return res.status(200).json({ success: true, message: 'Xóa đánh giá thành công.' });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Admin xóa toàn bộ đánh giá
+const adminDeleteAllRatings = async (req, res, next) => {
+    try {
+        await Rating.destroy({
+            where: {},
+            truncate: false
+        });
+        return res.status(200).json({ success: true, message: 'Đã xóa toàn bộ đánh giá trên hệ thống.' });
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     list,
     create,
     update,
-    remove
+    remove,
+    listAllRatings,
+    adminDeleteRating,
+    adminDeleteAllRatings
 }

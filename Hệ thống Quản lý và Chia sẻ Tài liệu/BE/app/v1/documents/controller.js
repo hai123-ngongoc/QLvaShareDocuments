@@ -187,6 +187,9 @@ const update = async (req, res, next) => {
         // approve/reject riêng của admin để duyệt, tránh tự set status = 'approved').
         if (req.user.role === 'admin') {
             document.status = status ?? document.status;
+            document.file_url = req.body.file_url ?? document.file_url;
+            document.file_type = req.body.file_type ?? document.file_type;
+            document.user_id = req.body.user_id ? Number(req.body.user_id) : document.user_id;
         }
 
         await document.save();
@@ -432,6 +435,33 @@ const getAverageRating = async (req, res, next) => {
     }
 };
 
+const adminCreateDocument = async (req, res, next) => {
+    try {
+        const { title, description, file_url, file_type, course_id, user_id, status } = req.body;
+
+        if (!title || !title.trim()) {
+            return res.status(400).json({ message: 'Vui lòng nhập tiêu đề tài liệu.' });
+        }
+
+        const document = await Document.create({
+            title: title.trim(),
+            description: description ? description.trim() : null,
+            file_url: file_url ? file_url.trim() : '/uploads/mock-placeholder.pdf',
+            file_type: file_type || 'pdf',
+            course_id: course_id ? Number(course_id) : null,
+            user_id: user_id ? Number(user_id) : req.user.id,
+            status: status || 'pending',
+            download_count: 0,
+            view_count: 0,
+            ai_summary: 'Tài liệu này được tạo bởi quản trị viên.'
+        });
+
+        return res.status(201).json(document);
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     list,
     get,
@@ -444,5 +474,6 @@ module.exports = {
     getAverageRating,
     getPendingDocuments,
     approveDocument,
-    rejectDocument
+    rejectDocument,
+    adminCreateDocument
 };

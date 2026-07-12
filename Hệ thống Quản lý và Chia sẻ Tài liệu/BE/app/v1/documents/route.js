@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { list, get, create, remove, update, download, search, viewFile, getAverageRating, getPendingDocuments, approveDocument, rejectDocument } = require('./controller');
+const { list, get, create, remove, update, download, search, viewFile, getAverageRating, getPendingDocuments, approveDocument, rejectDocument, adminCreateDocument } = require('./controller');
 const upload = require('../middleware/upload');
 const verifyToken = require('../middleware/verifyToken');
 const optionalAuth = require('../middleware/optionalAuth');
@@ -37,6 +37,9 @@ route.get('/download/:id', verifyToken, download);
 
 //danh sách tài liệu chờ duyet
 route.get('/admin/pending', verifyToken, isAdmin, getPendingDocuments);
+
+// admin tạo tài liệu mới
+route.post('/admin/create', verifyToken, isAdmin, adminCreateDocument);
 
 //duyệt
 route.put('/admin/:id/approve', verifyToken, isAdmin, approveDocument);

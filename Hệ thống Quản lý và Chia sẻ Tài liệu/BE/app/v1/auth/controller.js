@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../../../model/auth');
 const { Op } = require('sequelize');
+const { readLogs, writeLog } = require('../middleware/adminLogs');
 
 // Register a new user
 const register = async (req, res) => {
@@ -58,6 +59,10 @@ const login = async (req, res) => {
 
         if (!user) {
             return res.status(400).json({ message: 'Tên đăng nhập không tồn tại.' });
+        }
+
+        if (user.status === 'locked') {
+            return res.status(403).json({ message: 'Tài khoản của bạn đã bị khóa.' });
         }
 
         const check = await bcrypt.compare(
@@ -265,6 +270,149 @@ const updateProfile = async (req, res, next) => {
     }
 }
 
+// Admin lấy danh sách nhật ký logs
+const getAdminLogs = async (req, res, next) => {
+    try {
+        const logs = readLogs();
+        return res.status(200).json(logs);
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Admin viết nhật ký log
+const writeAdminLog = async (req, res, next) => {
+    try {
+        const { targetUserId, action, before, after, reason } = req.body;
+        const adminLog = {
+            admin_id: req.user.id,
+            target_user_id: targetUserId ? Number(targetUserId) : null,
+            action,
+            before,
+            after,
+            reason
+        };
+        const newLog = writeLog(adminLog);
+        return res.status(201).json(newLog);
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Admin tạo người dùng mới
+const adminCreateUser = async (req, res, next) => {
+    try {
+        const { username, email, password, role, status } = req.body;
+
+        if (!username || !email || !password) {
+            return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin (tên, email, mật khẩu).' });
+        }
+
+        const checkUser = await User.findOne({ where: { username } });
+        if (checkUser) {
+            return res.status(400).json({ message: 'Tên người dùng đã tồn tại.' });
+        }
+
+        const checkEmail = await User.findOne({ where: { email } });
+        if (checkEmail) {
+            return res.status(400).json({ message: 'Email đã tồn tại.' });
+        }
+
+        const hashPassword = await bcrypt.hash(password, 10);
+
+        const newUser = await User.create({
+            username,
+            email,
+            password: hashPassword,
+            role: role || 'user',
+            status: status || 'active',
+            avatar: null
+        });
+
+        return res.status(201).json({
+            success: true,
+            user: {
+                id: newUser.id,
+                username: newUser.username,
+                email: newUser.email,
+                role: newUser.role,
+                status: newUser.status,
+                created_at: newUser.created_at
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Admin cập nhật thông tin người dùng
+const adminUpdateUser = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { username, role, status } = req.body;
+
+        const user = await User.findByPk(id);
+        if (!user) {
+            return res.status(404).json({ message: 'Người dùng không tồn tại.' });
+        }
+
+        if (username && username !== user.username) {
+            const checkUser = await User.findOne({ where: { username } });
+            if (checkUser) {
+                return res.status(400).json({ message: 'Tên người dùng đã tồn tại.' });
+            }
+            user.username = username;
+        }
+
+        user.role = role ?? user.role;
+        user.status = status ?? user.status;
+
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Cập nhật tài khoản thành công.',
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                status: user.status
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Admin đặt lại mật khẩu của người dùng
+const adminResetPassword = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { tempPassword } = req.body;
+
+        if (!tempPassword) {
+            return res.status(400).json({ message: 'Mật khẩu tạm thời không được để trống.' });
+        }
+
+        const user = await User.findByPk(id);
+        if (!user) {
+            return res.status(404).json({ message: 'Người dùng không tồn tại.' });
+        }
+
+        const hash = await bcrypt.hash(tempPassword, 10);
+        user.password = hash;
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Đặt lại mật khẩu thành công.'
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     register,
     login,
@@ -272,5 +420,10 @@ module.exports = {
     changePassword,
     getAllUsers,
     deleteUser,
-    updateProfile
+    updateProfile,
+    getAdminLogs,
+    writeAdminLog,
+    adminCreateUser,
+    adminUpdateUser,
+    adminResetPassword
 };

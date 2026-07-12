@@ -6,11 +6,16 @@ import MyLibraryPage from './pages/MyLibraryPage'
 import ProfilePage from './pages/ProfilePage'
 import UploadPage from './pages/UploadPage'
 import UploadSuccessPage from './pages/UploadSuccessPage'
+import AdminPage from './pages/AdminPage'
 import { AuthModalProvider } from './context/AuthModalContext'
 import './App.css'
 
 function RoutedPage({ pathname }) {
   const routedPathname = pathname === '/login' || pathname === '/register' ? '/' : pathname
+
+  if (routedPathname === '/admin') {
+    return <AdminPage />
+  }
 
   if (routedPathname === '/courses') {
     return <CourseListPage />

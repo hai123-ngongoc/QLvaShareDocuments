@@ -37,6 +37,11 @@ const User = db.define(
             defaultValue: 'user'
         },
 
+        status: {
+            type: DataTypes.STRING,
+            defaultValue: 'active'
+        },
+
         created_at: {
             type: DataTypes.DATE,
             defaultValue: DataTypes.NOW
@@ -49,5 +54,7 @@ const User = db.define(
         underscored: true,
     }
 );
+
+db.query("ALTER TABLE users ADD COLUMN status VARCHAR(50) DEFAULT 'active'").catch(() => {});
 
 module.exports = User;
