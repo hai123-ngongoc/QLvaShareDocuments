@@ -4,6 +4,7 @@ import logo from '../../assets/logo.png'
 import useAuthModal from '../../hooks/useAuthModal'
 import useScrollDirection from '../../hooks/useScrollDirection'
 import { getInitials } from '../../utils/userDisplay'
+import { API_URL } from '../../services/api'
 
 function Header({ showThemeToggle = true, variant = 'default', isAuthenticated: authOverride }) {
   const isVisible = useScrollDirection()
@@ -97,7 +98,11 @@ function Header({ showThemeToggle = true, variant = 'default', isAuthenticated: 
               </a>
               {themeToggle}
               <a className="avatar" href="/profile" aria-label={`Tài khoản ${user?.username || ''}`}>
-                {getInitials(user)}
+                {user?.avatar ? (
+                  <img src={`${API_URL}${user.avatar}`} alt={user.username} />
+                ) : (
+                  getInitials(user)
+                )}
               </a>
               <button type="button" className="button button--ghost" onClick={logout}>
                 Đăng xuất

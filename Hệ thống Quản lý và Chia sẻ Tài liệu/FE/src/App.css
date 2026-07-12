@@ -4201,3 +4201,15 @@ html:not(.light-theme) .course-list-card .document-card__meta {
     font-size: 18px;
   }
 }
+
+/* Custom Profile Avatar Image Styles */
+.avatar img,
+.profile-avatar img,
+.library-profile__avatar img,
+.document-review-row__avatar img,
+.document-author-card__profile span img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 999px;
+}

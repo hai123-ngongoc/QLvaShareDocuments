@@ -205,11 +205,72 @@ const deleteUser = async (req, res) => {
     }
 }
 
+// update profile (username, email, avatar)
+const updateProfile = async (req, res, next) => {
+    try {
+        const { username, email } = req.body;
+        const userId = req.user.id;
+
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'Người dùng không tồn tại.' });
+        }
+
+        // Nếu thay đổi username, kiểm tra xem username mới đã tồn tại chưa
+        if (username && username !== user.username) {
+            const checkUser = await User.findOne({
+                where: { username }
+            });
+            if (checkUser) {
+                return res.status(400).json({ message: 'Tên người dùng đã tồn tại.' });
+            }
+            user.username = username;
+        }
+
+        // Nếu thay đổi email, kiểm tra xem email mới đã tồn tại chưa
+        if (email && email !== user.email) {
+            const checkEmail = await User.findOne({
+                where: { email }
+            });
+            if (checkEmail) {
+                return res.status(400).json({ message: 'Email đã tồn tại.' });
+            }
+            user.email = email;
+        }
+
+        if (req.file) {
+            // Lưu đường dẫn tương đối để FE có thể tải tĩnh
+            user.avatar = `/uploads/avatars/${req.file.filename}`;
+        }
+
+        await user.save();
+
+        // Trả về thông tin user mới cập nhật (loại bỏ mật khẩu)
+        const updatedUser = {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatar: user.avatar,
+            role: user.role
+        };
+
+        return res.json({
+            success: true,
+            message: 'Cập nhật thông tin tài khoản thành công.',
+            user: updatedUser
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Có lỗi xảy ra khi cập nhật thông tin.' });
+    }
+}
+
 module.exports = {
     register,
     login,
     profile,
     changePassword,
     getAllUsers,
-    deleteUser
+    deleteUser,
+    updateProfile
 };

@@ -7,6 +7,8 @@ import {
   Pencil,
   School,
 } from 'lucide-react'
+import { API_URL } from '../../services/api'
+import useAuthModal from '../../hooks/useAuthModal'
 
 const menuItems = [
   { label: 'Chỉnh sửa hồ sơ', icon: Pencil, active: true },
@@ -14,13 +16,14 @@ const menuItems = [
   { label: 'Thông báo', icon: Bell },
 ]
 
-function ProfileSidebar({ profile, stats }) {
+function ProfileSidebar({ profile, stats, activeTab, onTabChange }) {
+  const { logout } = useAuthModal()
   const profileInfo = [
-    { label: profile.email, icon: Mail },
+    { label: profile.email || 'Chưa có email', icon: Mail },
     // TODO: cần backend bổ sung school trong bảng users/profile, tạm dùng fallback.
-    { label: profile.school, icon: School },
+    { label: profile.school || 'Chưa có dữ liệu', icon: School },
     // TODO: cần backend bổ sung faculty trong bảng users/profile, tạm dùng fallback.
-    { label: profile.faculty, icon: Building2 },
+    { label: profile.faculty || 'Chưa có dữ liệu', icon: Building2 },
   ]
   const statItems = [
     { label: 'Tài liệu đã upload', value: stats.uploadedCount.toLocaleString() },
@@ -33,7 +36,11 @@ function ProfileSidebar({ profile, stats }) {
     <aside className="profile-sidebar" aria-label="Thông tin hồ sơ">
       <section className="profile-card profile-card--identity">
         <span className="profile-avatar profile-avatar--large" aria-hidden="true">
-          {profile.initials}
+          {profile.avatar ? (
+            <img src={`${API_URL}${profile.avatar}`} alt="Avatar" />
+          ) : (
+            profile.initials
+          )}
         </span>
         <h1>{profile.displayName}</h1>
         <span className="profile-join-badge">Tham gia từ {profile.joinedYear}</span>
@@ -66,9 +73,10 @@ function ProfileSidebar({ profile, stats }) {
       <nav className="profile-card profile-menu" aria-label="Cài đặt hồ sơ">
         {menuItems.map((item) => (
           <button
-            className={`profile-menu-item ${item.active ? 'profile-menu-item--active' : ''}`}
+            className={`profile-menu-item ${activeTab === item.label ? 'profile-menu-item--active' : ''}`}
             type="button"
             key={item.label}
+            onClick={() => onTabChange(item.label)}
           >
             <item.icon size={16} strokeWidth={2} />
             <span>{item.label}</span>
@@ -77,7 +85,11 @@ function ProfileSidebar({ profile, stats }) {
 
         <div className="profile-menu-divider" />
 
-        <button className="profile-menu-item profile-menu-item--danger" type="button">
+        <button
+          className="profile-menu-item profile-menu-item--danger"
+          type="button"
+          onClick={logout}
+        >
           <LogOut size={16} strokeWidth={2} />
           <span>Đăng xuất</span>
         </button>

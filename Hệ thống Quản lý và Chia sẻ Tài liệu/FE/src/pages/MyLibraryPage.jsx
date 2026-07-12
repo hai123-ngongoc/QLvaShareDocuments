@@ -8,6 +8,7 @@ import { getFavorites } from '../services/favoriteService'
 import { getCourses } from '../services/courseService'
 import { getAverageRating } from '../services/ratingService'
 import { getInitials } from '../utils/userDisplay'
+import { API_URL } from '../services/api'
 
 const tabs = ['Tài liệu của tôi', 'Đã lưu', 'Hoạt động', 'Cài đặt']
 
@@ -189,7 +190,11 @@ function MyLibraryPage() {
         <section className="library-profile" aria-labelledby="library-profile-title">
           <div className="library-profile__summary">
             <span className="library-profile__avatar" aria-hidden="true">
-              {getInitials(profile)}
+              {profile.avatar ? (
+                <img src={`${API_URL}${profile.avatar}`} alt="Avatar" />
+              ) : (
+                getInitials(profile)
+              )}
             </span>
             <div>
               <h1 id="library-profile-title">{profile.username}</h1>

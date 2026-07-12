@@ -82,6 +82,7 @@ export function AuthModalProvider({ children, initialOpen = false, initialMode =
     localStorage.removeItem('user')
     setIsAuthenticated(false)
     setUser(null)
+    window.location.href = '/'
   }, [])
 
   const value = useMemo(
@@ -106,10 +107,13 @@ export function AuthModalProvider({ children, initialOpen = false, initialMode =
       completeLogin,
       isAuthenticated,
       isLoginOpen,
+      logout,
       openLoginModal,
       openRegisterModal,
       pendingAction,
       requireAuth,
+      user,
+      setUser,
     ],
   )
 

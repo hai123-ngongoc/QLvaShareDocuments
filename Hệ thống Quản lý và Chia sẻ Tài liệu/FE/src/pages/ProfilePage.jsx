@@ -2,20 +2,50 @@ import { useEffect, useState } from 'react'
 import Header from '../components/layout/Header'
 import ProfileForm from '../components/profile/ProfileForm'
 import ProfileSidebar from '../components/profile/ProfileSidebar'
+import ChangePasswordForm from '../components/profile/ChangePasswordForm'
 import { getProfile } from '../services/authService'
 import { getDocuments } from '../services/documentService'
 import { getFavorites } from '../services/favoriteService'
+import { getInitials } from '../utils/userDisplay'
 
 function ProfilePage() {
   const [profile, setProfile] = useState(null)
+  const [activeTab, setActiveTab] = useState('Chỉnh sửa hồ sơ')
   const [stats, setStats] = useState({
     uploadedCount: 0, savedCount: 0, totalViews: 0, totalDownloads: 0,
   })
 
+  const handleProfileUpdate = (updatedUser) => {
+    const initials = getInitials(updatedUser)
+    const displayName = updatedUser.username
+    const joinedYear = updatedUser.created_at
+      ? new Date(updatedUser.created_at).getFullYear().toString()
+      : '2026'
+
+    setProfile({
+      ...updatedUser,
+      initials,
+      displayName,
+      joinedYear,
+    })
+  }
+
   useEffect(() => {
     getProfile().then((res) => {
       const currentUser = res.user
-      setProfile(currentUser)
+      const initials = getInitials(currentUser)
+      const displayName = currentUser.username
+      const joinedYear = currentUser.created_at
+        ? new Date(currentUser.created_at).getFullYear().toString()
+        : '2026'
+
+      const mappedUser = {
+        ...currentUser,
+        initials,
+        displayName,
+        joinedYear,
+      }
+      setProfile(mappedUser)
 
       Promise.all([getDocuments(), getFavorites()]).then(([documents, favorites]) => {
         const myDocuments = documents.filter((doc) => doc.user_id === currentUser.id)
@@ -38,8 +68,28 @@ function ProfilePage() {
 
       <main className="profile-page">
         <div className="profile-layout">
-          <ProfileSidebar profile={profile} stats={stats} />
-          <ProfileForm profile={profile} />
+          <ProfileSidebar
+            profile={profile}
+            stats={stats}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
+          {activeTab === 'Chỉnh sửa hồ sơ' && (
+            <ProfileForm profile={profile} onProfileUpdate={handleProfileUpdate} />
+          )}
+          {activeTab === 'Đổi mật khẩu' && (
+            <ChangePasswordForm />
+          )}
+          {activeTab === 'Thông báo' && (
+            <section className="profile-panel" aria-labelledby="notification-title">
+              <div className="profile-panel__heading">
+                <h2 id="notification-title">Thông báo</h2>
+              </div>
+              <div style={{ padding: '20px 0', color: 'var(--text-soft)' }}>
+                Không có thông báo mới nào.
+              </div>
+            </section>
+          )}
         </div>
       </main>
     </>

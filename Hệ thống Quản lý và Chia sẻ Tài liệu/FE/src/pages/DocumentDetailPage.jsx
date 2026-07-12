@@ -17,6 +17,7 @@ import { getDocument, getPreviewUrl, downloadDocumentFile } from '../services/do
 import { getCourse } from '../services/courseService'
 import { getRatingsForDocument, getAverageRating, addRating } from '../services/ratingService'
 import { checkFavorite, addFavorite, removeFavorite } from '../services/favoriteService'
+import { API_URL } from '../services/api'
 
 const statusLabels = {
   approved: 'Đã duyệt',
@@ -362,7 +363,11 @@ function DocumentDetailPage() {
               <h2 id="document-author-title">Người đăng</h2>
               <div className="document-author-card__profile">
                 <span aria-hidden="true">
-                  {(document.uploader?.username ?? '?').charAt(0).toUpperCase()}
+                  {document.uploader?.avatar ? (
+                    <img src={`${API_URL}${document.uploader.avatar}`} alt="Avatar" />
+                  ) : (
+                    (document.uploader?.username ?? '?').charAt(0).toUpperCase()
+                  )}
                 </span>
                 <strong>{document.uploader?.username ?? `Người dùng #${document.user_id}`}</strong>
               </div>
@@ -432,7 +437,11 @@ function DocumentDetailPage() {
             {ratings.map((review) => (
               <article className="document-review-row" key={review.id}>
                 <span className="document-review-row__avatar" aria-hidden="true">
-                  {(review.user?.username ?? '?').charAt(0).toUpperCase()}
+                  {review.user?.avatar ? (
+                    <img src={`${API_URL}${review.user.avatar}`} alt="Avatar" />
+                  ) : (
+                    (review.user?.username ?? '?').charAt(0).toUpperCase()
+                  )}
                 </span>
                 <div>
                   <div className="document-review-row__top">

@@ -24,3 +24,10 @@ export function changePassword({ oldPassword, newPassword }) {
         body: { oldPassword, newPassword },
     })
 }
+
+export function updateProfile(formData) {
+    return apiFetch('/v1/auth/profile', {
+        method: 'PUT',
+        body: formData,
+    })
+}
