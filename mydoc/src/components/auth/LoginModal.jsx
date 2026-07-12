@@ -25,7 +25,15 @@ function GoogleIcon() {
   )
 }
 
-function LoginModal({ isOpen, mode = 'login', onClose, onModeChange, onSuccess, pendingAction }) {
+function LoginModal({
+  isOpen,
+  mode = 'login',
+  onClose,
+  onLogin,
+  onModeChange,
+  onRegister,
+  pendingAction,
+}) {
   const [showPassword, setShowPassword] = useState(false)
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
@@ -92,10 +100,19 @@ function LoginModal({ isOpen, mode = 'login', onClose, onModeChange, onSuccess, 
     setIsSubmitting(true)
 
     window.setTimeout(() => {
+      const result = isRegisterMode
+        ? onRegister({ username, email, password })
+        : onLogin({ email, password })
+
       setIsSubmitting(false)
+
+      if (!result.ok) {
+        setErrorMessage(result.message)
+        return
+      }
+
       setPassword('')
       setConfirmPassword('')
-      onSuccess()
     }, 800)
   }
 

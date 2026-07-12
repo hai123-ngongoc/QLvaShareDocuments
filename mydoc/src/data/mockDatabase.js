@@ -39,12 +39,21 @@ export const users = [
   },
   {
     id: 5,
-    username: 'demo_user',
-    password: 'hashed-demo-password',
-    email: 'demo@example.com',
+    username: 'default_user',
+    password: 'user123',
+    email: 'user@dochub.test',
     avatar: null,
     role: 'user',
     created_at: '2026-02-01T08:00:00Z',
+  },
+  {
+    id: 6,
+    username: 'admin',
+    password: 'admin123',
+    email: 'admin@dochub.test',
+    avatar: null,
+    role: 'admin',
+    created_at: '2026-02-01T08:10:00Z',
   },
 ]
 

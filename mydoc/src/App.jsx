@@ -1,4 +1,6 @@
 import HomePage from './pages/HomePage'
+import { useEffect } from 'react'
+import AdminPage from './pages/AdminPage'
 import CourseDetailPage from './pages/CourseDetailPage'
 import CourseListPage from './pages/CourseListPage'
 import DocumentDetailPage from './pages/DocumentDetailPage'
@@ -7,7 +9,33 @@ import ProfilePage from './pages/ProfilePage'
 import UploadPage from './pages/UploadPage'
 import UploadSuccessPage from './pages/UploadSuccessPage'
 import { AuthModalProvider } from './context/AuthModalContext'
+import useAuthModal from './hooks/useAuthModal'
 import './App.css'
+
+function AuthRequiredPage({ children, role, pathname }) {
+  const { currentUser, isAuthenticated, openLoginModal } = useAuthModal()
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      openLoginModal({
+        label: 'Đăng nhập để tiếp tục.',
+        onSuccess: () => window.location.assign(pathname),
+      })
+    }
+  }, [isAuthenticated, openLoginModal, pathname])
+
+  if (!isAuthenticated) return <HomePage />
+
+  if (role && currentUser?.role !== role) {
+    return (
+      <>
+        <HomePage />
+      </>
+    )
+  }
+
+  return children
+}
 
 function RoutedPage({ pathname }) {
   const routedPathname = pathname === '/login' || pathname === '/register' ? '/' : pathname
@@ -29,19 +57,43 @@ function RoutedPage({ pathname }) {
   }
 
   if (routedPathname === '/library') {
-    return <MyLibraryPage />
+    return (
+      <AuthRequiredPage pathname={routedPathname}>
+        <MyLibraryPage />
+      </AuthRequiredPage>
+    )
   }
 
   if (routedPathname === '/profile') {
-    return <ProfilePage />
+    return (
+      <AuthRequiredPage pathname={routedPathname}>
+        <ProfilePage />
+      </AuthRequiredPage>
+    )
   }
 
   if (routedPathname === '/upload') {
-    return <UploadPage />
+    return (
+      <AuthRequiredPage pathname={routedPathname}>
+        <UploadPage />
+      </AuthRequiredPage>
+    )
   }
 
   if (routedPathname === '/upload/success') {
-    return <UploadSuccessPage />
+    return (
+      <AuthRequiredPage pathname={routedPathname}>
+        <UploadSuccessPage />
+      </AuthRequiredPage>
+    )
+  }
+
+  if (routedPathname === '/admin') {
+    return (
+      <AuthRequiredPage pathname={routedPathname} role="admin">
+        <AdminPage />
+      </AuthRequiredPage>
+    )
   }
 
   return <HomePage />
