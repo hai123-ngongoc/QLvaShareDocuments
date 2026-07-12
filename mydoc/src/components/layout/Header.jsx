@@ -4,6 +4,19 @@ import logo from '../../assets/logo.png'
 import useAuthModal from '../../hooks/useAuthModal'
 import useScrollDirection from '../../hooks/useScrollDirection'
 
+const THEME_STORAGE_KEY = 'dochub_theme'
+
+function getInitialLightTheme() {
+  if (typeof window === 'undefined') return false
+
+  const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
+
+  if (storedTheme === 'light') return true
+  if (storedTheme === 'dark') return false
+
+  return document.documentElement.classList.contains('light-theme')
+}
+
 function Header({ showThemeToggle = true, variant = 'default', isAuthenticated: authOverride }) {
   const isVisible = useScrollDirection()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -29,15 +42,17 @@ function Header({ showThemeToggle = true, variant = 'default', isAuthenticated: 
   const accountName = currentUser?.username || 'Tài khoản'
   const accountEmail = currentUser?.email || 'Chưa có email'
 
-  // check nếu document đã được render trước khi truy cập classList để tránh lỗi khi render phía server
-  const [isLight, setIsLight] = useState(() => {
-    return typeof document !== 'undefined' && document.documentElement.classList.contains('light-theme')
-  })
+  const [isLight, setIsLight] = useState(getInitialLightTheme)
 
   // check nếu document đã được render trước khi truy cập classList để tránh lỗi khi render phía server
   useEffect(() => {
-    if (isLight) document.documentElement.classList.add('light-theme')
-    else document.documentElement.classList.remove('light-theme')
+    if (isLight) {
+      document.documentElement.classList.add('light-theme')
+      window.localStorage.setItem(THEME_STORAGE_KEY, 'light')
+    } else {
+      document.documentElement.classList.remove('light-theme')
+      window.localStorage.setItem(THEME_STORAGE_KEY, 'dark')
+    }
   }, [isLight])
 
   useEffect(() => {

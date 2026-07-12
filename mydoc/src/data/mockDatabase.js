@@ -311,6 +311,51 @@ export const documents = [
     status: 'rejected',
     created_at: '2026-06-26T09:00:00Z',
   },
+  {
+    id: 13,
+    title: 'NodeJS Express - Ghi chú routing và middleware',
+    description: 'Tóm tắt cách tổ chức route, middleware và xử lý request trong Express.',
+    file_url: '/documents/nodejs-express-routing.pdf',
+    file_type: 'pdf',
+    course_id: 1,
+    user_id: 5,
+    ai_summary:
+      'Ghi chú thực hành Express gồm route params, middleware xác thực và xử lý lỗi cơ bản.',
+    download_count: 86,
+    view_count: 240,
+    status: 'approved',
+    created_at: '2026-06-24T08:20:00Z',
+  },
+  {
+    id: 14,
+    title: 'SQL JOIN - Bài tập truy vấn cơ bản',
+    description: 'Bộ bài tập luyện INNER JOIN, LEFT JOIN và GROUP BY cho môn cơ sở dữ liệu.',
+    file_url: '/documents/sql-join-practice.pdf',
+    file_type: 'pdf',
+    course_id: 2,
+    user_id: 5,
+    ai_summary:
+      'Các bài truy vấn SQL theo mức độ tăng dần, tập trung vào join bảng và gom nhóm dữ liệu.',
+    download_count: 64,
+    view_count: 180,
+    status: 'approved',
+    created_at: '2026-06-23T10:15:00Z',
+  },
+  {
+    id: 15,
+    title: 'AI Search - Ghi chú thuật toán A*',
+    description: 'Ghi chú ngắn về thuật toán tìm kiếm A* và hàm heuristic.',
+    file_url: '/documents/ai-search-a-star.docx',
+    file_type: 'docx',
+    course_id: 4,
+    user_id: 5,
+    ai_summary:
+      'Tóm tắt ý tưởng A*, cách chọn heuristic và ví dụ tìm đường trên đồ thị có trọng số.',
+    download_count: 0,
+    view_count: 12,
+    status: 'pending',
+    created_at: '2026-06-27T09:30:00Z',
+  },
 ]
 
 export const ratings = [
@@ -394,6 +439,30 @@ export const ratings = [
     comment: null,
     created_at: '2026-06-21T08:45:00Z',
   },
+  {
+    id: 11,
+    user_id: 5,
+    document_id: 1,
+    rating: 5,
+    comment: 'Tài liệu tổng hợp đủ ý, phần cấu trúc cây rất dễ ôn lại.',
+    created_at: '2026-06-24T09:00:00Z',
+  },
+  {
+    id: 12,
+    user_id: 5,
+    document_id: 8,
+    rating: 4,
+    comment: 'Checklist gọn, phù hợp để kiểm tra nhanh trước khi nộp bài.',
+    created_at: '2026-06-24T09:20:00Z',
+  },
+  {
+    id: 13,
+    user_id: 5,
+    document_id: 10,
+    rating: 5,
+    comment: 'Phần BFS và DFS có ví dụ rõ ràng.',
+    created_at: '2026-06-24T09:40:00Z',
+  },
 ]
 
 export const favorites = [
@@ -409,6 +478,24 @@ export const favorites = [
     document_id: 3,
     created_at: '2026-06-22T09:10:00Z',
   },
+  {
+    id: 3,
+    user_id: 5,
+    document_id: 1,
+    created_at: '2026-06-24T10:00:00Z',
+  },
+  {
+    id: 4,
+    user_id: 5,
+    document_id: 8,
+    created_at: '2026-06-24T10:10:00Z',
+  },
+  {
+    id: 5,
+    user_id: 5,
+    document_id: 10,
+    created_at: '2026-06-24T10:20:00Z',
+  },
 ]
 
 export const downloads = [
@@ -423,6 +510,24 @@ export const downloads = [
     user_id: 1,
     document_id: 2,
     download_time: '2026-06-23T10:30:00Z',
+  },
+  {
+    id: 3,
+    user_id: 5,
+    document_id: 1,
+    download_time: '2026-06-24T11:00:00Z',
+  },
+  {
+    id: 4,
+    user_id: 5,
+    document_id: 8,
+    download_time: '2026-06-24T11:15:00Z',
+  },
+  {
+    id: 5,
+    user_id: 5,
+    document_id: 10,
+    download_time: '2026-06-24T11:30:00Z',
   },
 ]
 
@@ -440,5 +545,19 @@ export const ai_related_documents = [
     related_document_id: 3,
     similarity_score: 0.87,
     created_at: '2026-06-24T08:00:00Z',
+  },
+  {
+    id: 3,
+    document_id: 13,
+    related_document_id: 1,
+    similarity_score: 0.9,
+    created_at: '2026-06-24T12:00:00Z',
+  },
+  {
+    id: 4,
+    document_id: 14,
+    related_document_id: 2,
+    similarity_score: 0.88,
+    created_at: '2026-06-24T12:10:00Z',
   },
 ]

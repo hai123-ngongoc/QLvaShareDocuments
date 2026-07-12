@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   CheckCircle,
   ChevronLeft,
@@ -13,7 +13,6 @@ import {
   Lock,
   Menu,
   MessageSquare,
-  MoreVertical,
   Pencil,
   Plus,
   Search,
@@ -25,6 +24,7 @@ import {
 } from 'lucide-react'
 import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
+import ActionMenu from '../components/common/ActionMenu'
 import useAuthModal from '../hooks/useAuthModal'
 import {
   courses,
@@ -62,25 +62,6 @@ const documentRejectReasonOptions = [
   'Thiếu mô tả hoặc thông tin cần thiết',
 ]
 
-const rowMenuSizes = {
-  document: { width: 170, height: 112 },
-  user: { width: 198, height: 172 },
-}
-
-function getRowMenuPlacement(triggerElement, menuType) {
-  const rect = triggerElement.getBoundingClientRect()
-  const menuSize = rowMenuSizes[menuType]
-  const viewportPadding = 12
-  const spaceBelow = window.innerHeight - rect.bottom - viewportPadding
-  const spaceAbove = rect.top - viewportPadding
-  const spaceLeft = rect.right - viewportPadding
-
-  return {
-    vertical: spaceBelow < menuSize.height && spaceAbove > spaceBelow ? 'up' : 'down',
-    horizontal: spaceLeft < menuSize.width ? 'left' : 'right',
-  }
-}
-
 const statusLabels = {
   approved: 'Đã duyệt',
   pending: 'Chờ duyệt',
@@ -109,6 +90,11 @@ function normalizeFileType(document) {
   return document.file_type
 }
 
+function getFileNameFromUrl(fileUrl) {
+  if (!fileUrl) return 'Chưa có file'
+  return decodeURIComponent(fileUrl.split('/').pop() || fileUrl)
+}
+
 function AdminPage() {
   const { currentUser } = useAuthModal()
   const adminShellRef = useRef(null)
@@ -125,18 +111,13 @@ function AdminPage() {
   const [ratingPage, setRatingPage] = useState(0)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [documentDeleteReason, setDocumentDeleteReason] = useState('')
-  const [openDocumentMenuId, setOpenDocumentMenuId] = useState(null)
-  const [openUserMenuId, setOpenUserMenuId] = useState(null)
-  const [rowMenuPlacement, setRowMenuPlacement] = useState({
-    vertical: 'down',
-    horizontal: 'right',
-  })
   const [pendingRoleChange, setPendingRoleChange] = useState(null)
   const [isDeleteAllRatingsOpen, setIsDeleteAllRatingsOpen] = useState(false)
   const [deleteAllRatingsText, setDeleteAllRatingsText] = useState('')
   const [documentEditor, setDocumentEditor] = useState(null)
   const [documentRejectRequest, setDocumentRejectRequest] = useState(null)
   const [documentRejectReason, setDocumentRejectReason] = useState('')
+  const [previewDocument, setPreviewDocument] = useState(null)
   const [userEditor, setUserEditor] = useState(null)
   const [userDetail, setUserDetail] = useState(null)
   const [userDeleteRequest, setUserDeleteRequest] = useState(null)
@@ -163,21 +144,6 @@ function AdminPage() {
     })),
   )
   const [adminRatings, setAdminRatings] = useState(seedRatings)
-
-  useEffect(() => {
-    const handlePointerDown = (event) => {
-      if (!event.target.closest('.admin-row-menu')) {
-        setOpenDocumentMenuId(null)
-        setOpenUserMenuId(null)
-      }
-    }
-
-    window.addEventListener('pointerdown', handlePointerDown)
-
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown)
-    }
-  }, [])
 
   const enrichedDocuments = useMemo(() => {
     return adminDocuments.map((document) => {
@@ -406,6 +372,7 @@ function AdminPage() {
     setDocumentEditor({
       mode: 'edit',
       id: document.id,
+      originalStatus: document.status,
       values: {
         title: document.title,
         description: document.description ?? '',
@@ -424,6 +391,11 @@ function AdminPage() {
     if (!documentEditor) return
 
     const values = documentEditor.values
+    const submitAction = event.nativeEvent.submitter?.dataset.action
+    const shouldApproveAfterSave =
+      documentEditor.mode === 'edit' &&
+      documentEditor.originalStatus === 'pending' &&
+      submitAction === 'save-approve'
     const reason = values.reason?.trim() ?? ''
     if (documentEditor.mode === 'edit' && !reason) {
       showToast('Cần nhập lý do khi sửa thông tin tài liệu của user.')
@@ -437,7 +409,7 @@ function AdminPage() {
       file_type: values.file_type,
       course_id: Number(values.course_id),
       user_id: Number(values.user_id),
-      status: values.status,
+      status: shouldApproveAfterSave ? 'approved' : values.status,
     }
 
     if (documentEditor.mode === 'create') {
@@ -592,6 +564,7 @@ function AdminPage() {
         document.id === documentId ? { ...document, status: 'approved' } : document,
       ),
     )
+    setPreviewDocument(null)
   }
 
   const openRejectDocumentConfirm = (document, action = 'reject') => {
@@ -651,6 +624,7 @@ function AdminPage() {
 
         setDocumentRejectRequest(null)
         setDocumentRejectReason('')
+        setPreviewDocument(null)
       },
       action === 'revoke' ? 'Đã thu hồi duyệt tài liệu.' : 'Đã từ chối tài liệu.',
     )
@@ -1053,7 +1027,7 @@ function AdminPage() {
                 <span>{pendingDocuments.length.toLocaleString()} tài liệu</span>
               </div>
 
-              <div className="admin-table-wrap">
+              <div className="admin-table-wrap admin-table-wrap--pending-documents">
                 <table className="admin-table admin-table--documents admin-table--pending-documents">
                   <thead>
                     <tr>
@@ -1075,7 +1049,14 @@ function AdminPage() {
                     {pendingDocuments.map((document) => (
                       <tr key={document.id}>
                         <td className="admin-document-title-cell" title={document.title}>
-                          <strong>{document.title}</strong>
+                          <button
+                            className="admin-document-preview-link"
+                            type="button"
+                            onClick={() => setPreviewDocument(document)}
+                          >
+                            <Eye size={14} strokeWidth={2} />
+                            <strong>{document.title}</strong>
+                          </button>
                           <small>{document.description || 'Chưa có mô tả'}</small>
                         </td>
                         <td>{document.ownerName}</td>
@@ -1088,21 +1069,38 @@ function AdminPage() {
                               <CheckCircle size={15} strokeWidth={2} />
                               Duyệt
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => openRejectDocumentConfirm(document, 'reject')}
-                            >
-                              <X size={15} strokeWidth={2} />
-                              Từ chối
-                            </button>
-                            <button
-                              type="button"
-                              title="Sửa thông tin/metadata trước khi duyệt"
-                              onClick={() => openEditDocumentForm(document)}
-                            >
-                              <Pencil size={15} strokeWidth={2} />
-                              Sửa
-                            </button>
+                            <ActionMenu ariaLabel={`Mở thao tác cho ${document.title}`}>
+                              <button
+                                type="button"
+                                title="Sửa thông tin/metadata trước khi duyệt"
+                                onClick={() => openEditDocumentForm(document)}
+                              >
+                                <Pencil size={15} strokeWidth={2} />
+                                Sửa
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openRejectDocumentConfirm(document, 'reject')}
+                              >
+                                <X size={15} strokeWidth={2} />
+                                Từ chối
+                              </button>
+                              <button type="button" onClick={() => setPreviewDocument(document)}>
+                                <Eye size={15} strokeWidth={2} />
+                                Xem chi tiết
+                              </button>
+                              <button
+                                className="is-danger"
+                                type="button"
+                                onClick={() => {
+                                  setConfirmDeleteId(document.id)
+                                  setDocumentDeleteReason('')
+                                }}
+                              >
+                                <Trash2 size={15} strokeWidth={2} />
+                                Xoá
+                              </button>
+                            </ActionMenu>
                           </div>
                         </td>
                       </tr>
@@ -1187,8 +1185,8 @@ function AdminPage() {
                 </select>
               </div>
 
-              <div className="admin-table-wrap">
-                <table className="admin-table">
+              <div className="admin-table-wrap admin-table-wrap--documents">
+                <table className="admin-table admin-table--documents">
                   <thead>
                     <tr>
                       <th>Tên tài liệu</th>
@@ -1204,7 +1202,14 @@ function AdminPage() {
                     {paginatedDocuments.map((document) => (
                       <tr key={document.id}>
                         <td className="admin-document-title-cell" title={document.title}>
-                          <strong>{document.title}</strong>
+                          <button
+                            className="admin-document-preview-link"
+                            type="button"
+                            onClick={() => setPreviewDocument(document)}
+                          >
+                            <Eye size={14} strokeWidth={2} />
+                            <strong>{document.title}</strong>
+                          </button>
                           <small>{document.file_type.toUpperCase()}</small>
                         </td>
                         <td>{document.ownerName}</td>
@@ -1231,70 +1236,76 @@ function AdminPage() {
                         </td>
                         <td>
                           <div className="admin-row-actions admin-row-actions--compact">
-                            {document.status === 'pending' && (
+                            {document.status === 'pending' ? (
                               <button type="button" onClick={() => approveDocument(document.id)}>
+                                <CheckCircle size={15} strokeWidth={2} />
                                 Duyệt
                               </button>
+                            ) : (
+                              <button type="button" onClick={() => openEditDocumentForm(document)}>
+                                <Pencil size={15} strokeWidth={2} />
+                                Sửa
+                              </button>
                             )}
-                            <button type="button" onClick={() => openEditDocumentForm(document)}>
-                              <Pencil size={15} strokeWidth={2} />
-                              Sửa
-                            </button>
 
-                            <div className="admin-row-menu">
+                            <ActionMenu ariaLabel={`Mở thao tác cho ${document.title}`}>
+                              {document.status === 'pending' ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    title="Sửa thông tin/metadata trước khi duyệt"
+                                    onClick={() => openEditDocumentForm(document)}
+                                  >
+                                    <Pencil size={15} strokeWidth={2} />
+                                    Sửa
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openRejectDocumentConfirm(document, 'reject')}
+                                  >
+                                    <X size={15} strokeWidth={2} />
+                                    Từ chối
+                                  </button>
+                                  <button type="button" onClick={() => setPreviewDocument(document)}>
+                                    <Eye size={15} strokeWidth={2} />
+                                    Xem chi tiết
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button type="button" onClick={() => setPreviewDocument(document)}>
+                                    <Eye size={15} strokeWidth={2} />
+                                    Xem chi tiết
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      document.status === 'rejected'
+                                        ? toggleDocumentVisibility(document.id)
+                                        : openRejectDocumentConfirm(document, 'revoke')
+                                    }
+                                  >
+                                    {document.status === 'rejected' ? (
+                                      <Eye size={15} strokeWidth={2} />
+                                    ) : (
+                                      <EyeOff size={15} strokeWidth={2} />
+                                    )}
+                                    {document.status === 'rejected' ? 'Duyệt lại' : 'Thu hồi duyệt'}
+                                  </button>
+                                </>
+                              )}
                               <button
-                                className="admin-row-menu__trigger"
+                                className="is-danger"
                                 type="button"
-                                aria-label={`Mở thao tác cho ${document.title}`}
-                                aria-expanded={openDocumentMenuId === document.id}
-                                onClick={(event) => {
-                                  setRowMenuPlacement(
-                                    getRowMenuPlacement(event.currentTarget, 'document'),
-                                  )
-                                  setOpenDocumentMenuId((currentId) =>
-                                    currentId === document.id ? null : document.id,
-                                  )
+                                onClick={() => {
+                                  setConfirmDeleteId(document.id)
+                                  setDocumentDeleteReason('')
                                 }}
                               >
-                                <MoreVertical size={16} strokeWidth={2} />
+                                <Trash2 size={15} strokeWidth={2} />
+                                Xoá
                               </button>
-                              {openDocumentMenuId === document.id && (
-                                <div
-                                  className={`admin-row-menu__panel admin-row-menu__panel--${rowMenuPlacement.vertical} admin-row-menu__panel--align-${rowMenuPlacement.horizontal}`}
-                                >
-                                  {document.status !== 'pending' && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setOpenDocumentMenuId(null)
-                                        document.status === 'rejected'
-                                          ? toggleDocumentVisibility(document.id)
-                                          : openRejectDocumentConfirm(document, 'revoke')
-                                      }}
-                                    >
-                                      {document.status === 'rejected' ? (
-                                        <Eye size={15} strokeWidth={2} />
-                                      ) : (
-                                        <EyeOff size={15} strokeWidth={2} />
-                                      )}
-                                      {document.status === 'rejected' ? 'Duyệt lại' : 'Thu hồi duyệt'}
-                                    </button>
-                                  )}
-                                  <button
-                                    className="is-danger"
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenDocumentMenuId(null)
-                                      setConfirmDeleteId(document.id)
-                                      setDocumentDeleteReason('')
-                                    }}
-                                  >
-                                    <Trash2 size={15} strokeWidth={2} />
-                                    Xoá
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                            </ActionMenu>
                           </div>
                         </td>
                       </tr>
@@ -1400,83 +1411,51 @@ function AdminPage() {
                               <Info size={15} strokeWidth={2} />
                               Xem chi tiết
                             </button>
-                            <div className="admin-row-menu">
-                              <button
-                                className="admin-row-menu__trigger"
-                                type="button"
-                                aria-label={`Mở thao tác cho ${user.username}`}
-                                aria-expanded={openUserMenuId === user.id}
-                                onClick={(event) => {
-                                  setRowMenuPlacement(getRowMenuPlacement(event.currentTarget, 'user'))
-                                  setOpenUserMenuId((currentId) =>
-                                    currentId === user.id ? null : user.id,
-                                  )
-                                }}
-                              >
-                                <MoreVertical size={16} strokeWidth={2} />
+                            <ActionMenu
+                              ariaLabel={`Mở thao tác cho ${user.username}`}
+                              menuClassName="admin-row-menu__panel--user"
+                              menuWidth={198}
+                              menuHeight={172}
+                            >
+                              <button type="button" onClick={() => openEditUserForm(user)}>
+                                <Pencil size={15} strokeWidth={2} />
+                                Chỉnh sửa
                               </button>
-
-                              {openUserMenuId === user.id && (
-                                <div
-                                  className={`admin-row-menu__panel admin-row-menu__panel--user admin-row-menu__panel--${rowMenuPlacement.vertical} admin-row-menu__panel--align-${rowMenuPlacement.horizontal}`}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenUserMenuId(null)
-                                      openEditUserForm(user)
-                                    }}
-                                  >
-                                    <Pencil size={15} strokeWidth={2} />
-                                    Chỉnh sửa
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={
-                                      user.status === 'deleted' ||
-                                      processingAction === `toggle-user-${user.id}`
-                                    }
-                                    onClick={() => {
-                                      setOpenUserMenuId(null)
-                                      toggleUserStatus(user.id)
-                                    }}
-                                  >
-                                    {user.status === 'locked' ? (
-                                      <Unlock size={15} strokeWidth={2} />
-                                    ) : (
-                                      <Lock size={15} strokeWidth={2} />
-                                    )}
-                                    {user.status === 'locked' ? 'Mở khoá' : 'Khoá'}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={
-                                      user.status === 'deleted' ||
-                                      processingAction === 'reset-password'
-                                    }
-                                    onClick={() => {
-                                      setOpenUserMenuId(null)
-                                      openResetPassword(user)
-                                    }}
-                                  >
-                                    <KeyRound size={15} strokeWidth={2} />
-                                    Đặt lại mật khẩu
-                                  </button>
-                                  <button
-                                    className="is-danger admin-row-menu__danger"
-                                    type="button"
-                                    disabled={user.status === 'deleted' || user.id === currentAdminId}
-                                    onClick={() => {
-                                      setOpenUserMenuId(null)
-                                      openDeleteUserConfirm(user)
-                                    }}
-                                  >
-                                    <Trash2 size={15} strokeWidth={2} />
-                                    Xoá
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                              <button
+                                type="button"
+                                disabled={
+                                  user.status === 'deleted' ||
+                                  processingAction === `toggle-user-${user.id}`
+                                }
+                                onClick={() => toggleUserStatus(user.id)}
+                              >
+                                {user.status === 'locked' ? (
+                                  <Unlock size={15} strokeWidth={2} />
+                                ) : (
+                                  <Lock size={15} strokeWidth={2} />
+                                )}
+                                {user.status === 'locked' ? 'Mở khoá' : 'Khoá'}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={
+                                  user.status === 'deleted' || processingAction === 'reset-password'
+                                }
+                                onClick={() => openResetPassword(user)}
+                              >
+                                <KeyRound size={15} strokeWidth={2} />
+                                Đặt lại mật khẩu
+                              </button>
+                              <button
+                                className="is-danger admin-row-menu__danger"
+                                type="button"
+                                disabled={user.status === 'deleted' || user.id === currentAdminId}
+                                onClick={() => openDeleteUserConfirm(user)}
+                              >
+                                <Trash2 size={15} strokeWidth={2} />
+                                Xoá
+                              </button>
+                            </ActionMenu>
                           </div>
                         </td>
                       </tr>
@@ -1621,6 +1600,96 @@ function AdminPage() {
           )}
         </section>
       </main>
+
+      {previewDocument && (
+        <div
+          className="admin-confirm"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setPreviewDocument(null)
+            }
+          }}
+        >
+          <section
+            className="admin-preview-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-document-preview-title"
+          >
+            <button
+              className="admin-confirm__close"
+              type="button"
+              aria-label="Đóng"
+              onClick={() => setPreviewDocument(null)}
+            >
+              <X size={18} strokeWidth={2} />
+            </button>
+
+            <div className="admin-preview-dialog__header">
+              <span className="document-preview-card__type">
+                {previewDocument.file_type.toUpperCase()}
+              </span>
+              <div>
+                <h2 id="admin-document-preview-title">{previewDocument.title}</h2>
+                <p>{getFileNameFromUrl(previewDocument.file_url)}</p>
+              </div>
+            </div>
+
+            <div className="admin-preview-dialog__meta">
+              <span>
+                Người đăng <strong>{previewDocument.ownerName}</strong>
+              </span>
+              <span>
+                Học phần <strong>{previewDocument.courseName}</strong>
+              </span>
+              <span>
+                Ngày gửi <strong>{formatDate(previewDocument.created_at)}</strong>
+              </span>
+            </div>
+
+            <div className="admin-preview-dialog__body">
+              <div className="admin-preview-dialog__fallback">
+                <FileText size={44} strokeWidth={1.8} />
+                <strong>Chưa có dữ liệu</strong>
+                <p>File xem trước sẽ hiển thị khi backend cung cấp file_url thật.</p>
+              </div>
+            </div>
+
+            <div className="admin-preview-dialog__description">
+              <strong>Mô tả đầy đủ</strong>
+              <p>{previewDocument.description || 'Chưa có mô tả'}</p>
+            </div>
+
+            <div className="admin-preview-dialog__actions">
+              <a
+                className="button button--outline"
+                href={previewDocument.file_url}
+                download
+              >
+                <Download size={16} strokeWidth={2} />
+                Tải file
+              </a>
+              <button
+                className="button button--outline"
+                type="button"
+                onClick={() => openRejectDocumentConfirm(previewDocument, 'reject')}
+              >
+                <X size={16} strokeWidth={2} />
+                Từ chối
+              </button>
+              <button
+                className="button button--primary"
+                type="button"
+                onClick={() => approveDocument(previewDocument.id)}
+              >
+                <CheckCircle size={16} strokeWidth={2} />
+                Duyệt
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {documentRejectRequest && (
         <div className="admin-confirm" role="presentation">
@@ -1851,10 +1920,25 @@ function AdminPage() {
                 </label>
               )}
 
+              {documentEditor.mode === 'edit' && documentEditor.originalStatus === 'pending' && (
+                <p className="admin-form__note">
+                  Tài liệu này đang chờ duyệt. Bạn có thể lưu thay đổi và duyệt luôn.
+                </p>
+              )}
+
               <div className="admin-form__actions">
                 <button className="button button--outline" type="button" onClick={() => setDocumentEditor(null)}>
                   Huỷ
                 </button>
+                {documentEditor.mode === 'edit' && documentEditor.originalStatus === 'pending' && (
+                  <button
+                    className="button button--outline"
+                    type="submit"
+                    data-action="save-approve"
+                  >
+                    Lưu & Duyệt
+                  </button>
+                )}
                 <button className="button button--primary" type="submit">
                   Lưu tài liệu
                 </button>

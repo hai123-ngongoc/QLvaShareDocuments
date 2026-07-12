@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Bookmark, Download, Eye, FileText } from 'lucide-react'
 import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
+import useAuthModal from '../hooks/useAuthModal'
 import {
   getCurrentUserProfile,
   getMyLibraryDocuments,
@@ -9,39 +10,38 @@ import {
   getSavedDocuments,
 } from '../data/homeSelectors'
 
-const profile = getCurrentUserProfile()
-const libraryStats = getMyLibraryStats()
-const myDocuments = getMyLibraryDocuments()
-const savedDocuments = getSavedDocuments()
-
-const profileStats = [
-  {
-    label: 'Tài liệu đã upload',
-    value: libraryStats.uploadedCount.toLocaleString(),
-    icon: FileText,
-    tone: 'amber',
-  },
-  {
-    label: 'Đã lưu',
-    value: libraryStats.savedCount.toLocaleString(),
-    icon: Bookmark,
-    tone: 'rose',
-  },
-  {
-    label: 'Lượt xem',
-    value: libraryStats.totalViews.toLocaleString(),
-    icon: Eye,
-    tone: 'emerald',
-  },
-  {
-    label: 'Lượt tải',
-    value: libraryStats.totalDownloads.toLocaleString(),
-    icon: Download,
-    tone: 'indigo',
-  },
-]
-
 const tabs = ['Tài liệu của tôi', 'Đã lưu', 'Hoạt động', 'Cài đặt']
+
+function getInitials(name = '') {
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .map((part) => part[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'U'
+  )
+}
+
+function createSessionProfile(user) {
+  if (!user) return null
+
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    avatar: user.avatar,
+    role: user.role,
+    created_at: user.created_at,
+    initials: getInitials(user.username),
+    displayName: user.username,
+    joinedYear: new Date(user.created_at).getFullYear().toString(),
+    school: 'Chưa có dữ liệu',
+    faculty: 'Chưa có dữ liệu',
+    studentId: 'Chưa có dữ liệu',
+  }
+}
 
 function formatRating(value) {
   return Number(value || 0).toFixed(1)
@@ -82,17 +82,44 @@ const settings = [
 ]
 
 function MyLibraryPage() {
+  const { currentUser } = useAuthModal()
   const [activeTab, setActiveTab] = useState(tabs[0])
-  const shownDocuments = useMemo(() => {
-    if (activeTab === 'Đã lưu') {
-      return savedDocuments
-    }
-
-    return myDocuments
-  }, [activeTab])
+  const profile = getCurrentUserProfile(currentUser?.id) ?? createSessionProfile(currentUser)
+  const libraryStats = getMyLibraryStats(currentUser?.id)
+  const myDocuments = getMyLibraryDocuments(currentUser?.id)
+  const savedDocuments = getSavedDocuments(currentUser?.id)
+  const profileStats = [
+    {
+      label: 'Tài liệu đã upload',
+      value: libraryStats.uploadedCount.toLocaleString(),
+      icon: FileText,
+      tone: 'amber',
+    },
+    {
+      label: 'Đã lưu',
+      value: libraryStats.savedCount.toLocaleString(),
+      icon: Bookmark,
+      tone: 'rose',
+    },
+    {
+      label: 'Lượt xem',
+      value: libraryStats.totalViews.toLocaleString(),
+      icon: Eye,
+      tone: 'emerald',
+    },
+    {
+      label: 'Lượt tải',
+      value: libraryStats.totalDownloads.toLocaleString(),
+      icon: Download,
+      tone: 'indigo',
+    },
+  ]
+  const shownDocuments = activeTab === 'Đã lưu' ? savedDocuments : myDocuments
   const showDocuments = activeTab === 'Tài liệu của tôi' || activeTab === 'Đã lưu'
   const showActivity = activeTab === 'Tài liệu của tôi' || activeTab === 'Hoạt động'
   const isSavedTab = activeTab === 'Đã lưu'
+
+  if (!profile) return null
 
   return (
     <>
