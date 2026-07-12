@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   BookOpen,
   CalendarDays,
@@ -13,9 +13,10 @@ import {
 } from 'lucide-react'
 import Footer from '../components/layout/Footer'
 import Header from '../components/layout/Header'
-import SuggestedDocuments from '../components/home/SuggestedDocuments'
 import useAuthModal from '../hooks/useAuthModal'
-import { getCourseDetail, getSuggestedDocumentsForCourse } from '../data/homeSelectors'
+import { getCourse } from '../services/courseService'
+import { getDocuments } from '../services/documentService'
+import { getAverageRating } from '../services/ratingService'
 
 const documentFilters = [
   { id: 'trending', label: 'Thịnh hành' },
@@ -36,22 +37,60 @@ function getCourseIdFromPath() {
 }
 
 function renderDocumentIcon(type) {
-  if (type === 'ppt') return <Presentation size={18} strokeWidth={2} />
-  if (type === 'docx') return <FileType size={18} strokeWidth={2} />
+  if (type === 'ppt' || type === 'pptx') return <Presentation size={18} strokeWidth={2} />
+  if (type === 'docx' || type === 'doc') return <FileType size={18} strokeWidth={2} />
   if (type === 'zip') return <FileArchive size={18} strokeWidth={2} />
   return <FileText size={18} strokeWidth={2} />
 }
 
+function formatDate(dateValue) {
+  if (!dateValue) return ''
+  return new Intl.DateTimeFormat('vi-VN').format(new Date(dateValue))
+}
+
 function CourseDetailPage() {
   const { requireAuth } = useAuthModal()
-  const course = getCourseDetail(getCourseIdFromPath())
-  const suggestedDocuments = useMemo(() => {
-    if (!course) return []
+  const courseId = getCourseIdFromPath()
 
-    return getSuggestedDocumentsForCourse(course.id)
-  }, [course])
+  const [course, setCourse] = useState(null)
+  const [notFound, setNotFound] = useState(false)
+  const [documents, setDocuments] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [activeFilter, setActiveFilter] = useState('trending')
+
+  useEffect(() => {
+    setCourse(null)
+    setNotFound(false)
+
+    getCourse(courseId)
+      .then(setCourse)
+      .catch(() => setNotFound(true))
+  }, [courseId])
+
+  useEffect(() => {
+    // BE không có API "tài liệu theo học phần" riêng -> lấy toàn bộ rồi lọc theo course_id,
+    // chỉ giữ tài liệu đã duyệt vì đây là trang công khai cho mọi người xem.
+    getDocuments()
+      .then((allDocuments) => {
+        const courseDocuments = allDocuments.filter(
+          (document) => document.course_id === courseId && document.status === 'approved',
+        )
+
+        // BE chưa join User vào GET /v1/documents nên chỉ có user_id thô -> tạm hiển thị "Người dùng #id".
+        // Điểm đánh giá trung bình cũng không có sẵn trong danh sách -> gọi riêng cho từng tài liệu
+        // (giống cách MyLibraryPage.jsx đã làm) để phục vụ sort "Đánh giá cao nhất".
+        return Promise.all(
+          courseDocuments.map((document) =>
+            getAverageRating(document.id)
+              .then((avg) => ({ ...document, avg_rating: Number(avg.average_rating) || 0 }))
+              .catch(() => ({ ...document, avg_rating: 0 })),
+          ),
+        )
+      })
+      .then(setDocuments)
+      .catch(console.error)
+  }, [courseId])
+
   const requestDownload = (document) => {
     requireAuth({
       label: `Đăng nhập để tải "${document.title}".`,
@@ -60,15 +99,12 @@ function CourseDetailPage() {
       },
     })
   }
-  const filteredDocuments = useMemo(() => {
-    if (!course) return []
 
+  const filteredDocuments = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase()
     const matchingDocuments = normalizedSearch
-      ? course.documents.filter((document) => {
-          return `${document.title} ${document.uploader}`.toLowerCase().includes(normalizedSearch)
-        })
-      : course.documents
+      ? documents.filter((document) => `${document.title}`.toLowerCase().includes(normalizedSearch))
+      : documents
 
     return [...matchingDocuments].sort((firstDocument, secondDocument) => {
       if (activeFilter === 'highest-rated') {
@@ -76,20 +112,17 @@ function CourseDetailPage() {
       }
 
       if (activeFilter === 'newest') {
-        return (
-          new Date(secondDocument.uploadedAtValue).getTime() -
-          new Date(firstDocument.uploadedAtValue).getTime()
-        )
+        return new Date(secondDocument.created_at).getTime() - new Date(firstDocument.created_at).getTime()
       }
 
-      const firstTrendScore = firstDocument.view_count + firstDocument.download_count * 2
-      const secondTrendScore = secondDocument.view_count + secondDocument.download_count * 2
+      const firstTrendScore = (firstDocument.view_count || 0) + (firstDocument.download_count || 0) * 2
+      const secondTrendScore = (secondDocument.view_count || 0) + (secondDocument.download_count || 0) * 2
 
       return secondTrendScore - firstTrendScore
     })
-  }, [activeFilter, course, searchTerm])
+  }, [activeFilter, documents, searchTerm])
 
-  if (!course) {
+  if (notFound) {
     return (
       <>
         <Header />
@@ -119,6 +152,16 @@ function CourseDetailPage() {
     )
   }
 
+  if (!course) {
+    return (
+      <>
+        <Header />
+        <main className="home-page course-detail-page" />
+        <Footer />
+      </>
+    )
+  }
+
   return (
     <>
       <Header />
@@ -127,7 +170,7 @@ function CourseDetailPage() {
         <nav className="course-breadcrumb" aria-label="Breadcrumb">
           <a href="/courses">Học phần</a>
           <span aria-hidden="true">›</span>
-          <span>{course.name}</span>
+          <span>{course.course_name}</span>
         </nav>
 
         <section className="course-detail-hero" aria-labelledby="course-detail-title">
@@ -136,8 +179,8 @@ function CourseDetailPage() {
           </span>
 
           <div className="course-detail-hero__content">
-            <span className="course-detail-hero__code">{course.code}</span>
-            <h1 id="course-detail-title">{course.name}</h1>
+            <span className="course-detail-hero__code">{course.course_code}</span>
+            <h1 id="course-detail-title">{course.course_name}</h1>
 
             <div className="course-detail-hero__meta">
               <span>
@@ -146,7 +189,7 @@ function CourseDetailPage() {
               </span>
               <span>
                 <CalendarDays size={14} strokeWidth={2} />
-                Tạo ngày {course.createdAt}
+                Tạo ngày {formatDate(course.created_at)}
               </span>
             </div>
 
@@ -204,23 +247,23 @@ function CourseDetailPage() {
                     <h3>
                       <a href={`/documents/${document.id}`}>{document.title}</a>
                     </h3>
-                    {document.summary && (
-                      <p className="course-document-item__summary">{document.summary}</p>
+                    {document.description && (
+                      <p className="course-document-item__summary">{document.description}</p>
                     )}
                     <div className="course-document-item__meta">
-                      <span>{document.uploader}</span>
-                      <span>{document.uploadedAt}</span>
+                      <span>{document.uploader?.username ?? `Người dùng #${document.user_id}`}</span>
+                      <span>{formatDate(document.created_at)}</span>
                     </div>
                   </div>
 
                   <div className="course-document-item__stats" aria-label="Thống kê tài liệu">
                     <span>
                       <Eye size={15} strokeWidth={2} aria-hidden="true" />
-                      {document.view_count.toLocaleString()} lượt xem
+                      {(document.view_count ?? 0).toLocaleString()} lượt xem
                     </span>
                     <span>
                       <Download size={15} strokeWidth={2} aria-hidden="true" />
-                      {document.download_count.toLocaleString()} lượt tải
+                      {(document.download_count ?? 0).toLocaleString()} lượt tải
                     </span>
                   </div>
 
@@ -243,16 +286,7 @@ function CourseDetailPage() {
           </div>
         </section>
 
-        {suggestedDocuments.length > 0 && (
-          <SuggestedDocuments
-            documents={suggestedDocuments}
-            headingId="course-suggestions-title"
-            showFilters={false}
-            showFooterControls={false}
-            getDocumentHref={(document) => `/documents/${document.id}`}
-            variant="compact"
-          />
-        )}
+        {/* TODO: BE không có API cho tài liệu gợi ý AI theo học phần -> ẩn phần này cho tới khi có endpoint. */}
       </main>
 
       <Footer />

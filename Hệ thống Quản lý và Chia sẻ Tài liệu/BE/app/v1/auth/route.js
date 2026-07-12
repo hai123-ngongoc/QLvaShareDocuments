@@ -1,4 +1,4 @@
-const {Router} = require('express');
+const { Router } = require('express');
 const { register, login, profile, changePassword, getAllUsers, deleteUser } = require('./controller');
 
 const verifyToken = require('../middleware/verifyToken');

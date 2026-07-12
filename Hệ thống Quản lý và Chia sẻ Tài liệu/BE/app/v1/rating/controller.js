@@ -1,4 +1,5 @@
 const Rating = require('../../../model/rating');
+const User = require('../../../model/auth');
 const createError = require('http-errors');
 
 //danh sách đánh giá của 1 document
@@ -9,7 +10,12 @@ const list = async (req, res, next) => {
         const ratings = await Rating.findAll({
             where: {
                 document_id
-            }
+            },
+            include: [{
+                model: User,
+                as: 'user',
+                attributes: { exclude: ['password'] }
+            }]
         });
 
         res.status(200).json(ratings);
@@ -21,9 +27,17 @@ const list = async (req, res, next) => {
 
 //thêm đánh giá
 const create = async (req, res, next) => {
-   try {
+    try {
         const { document_id, rating, comment } = req.body;
         const user_id = req.user.id;
+
+        if (!document_id) {
+            return res.status(400).json({ message: 'Thiếu document_id.' });
+        }
+
+        if (rating === undefined || rating === null) {
+            return res.status(400).json({ message: 'Vui lòng chọn số sao đánh giá.' });
+        }
 
         //ktra và đánh giá chưa
         const exist = await Rating.findOne({
@@ -50,9 +64,9 @@ const create = async (req, res, next) => {
         });
 
         return res.status(201).json(newRating);
-   } catch (error) {
-       next(error);
-   }
+    } catch (error) {
+        next(error);
+    }
 }
 
 //cập nhật đánh giá
@@ -82,7 +96,7 @@ const update = async (req, res, next) => {
 
         await item.save();
 
-        return res.status(200).json({message: "Cập nhật đánh giá thành công."});
+        return res.status(200).json({ message: "Cập nhật đánh giá thành công." });
 
     } catch (error) {
         next(error);
@@ -112,7 +126,7 @@ const remove = async (req, res, next) => {
 
         await item.destroy();
 
-        return res.status(200).json({message: "Xóa đánh giá thành công."});
+        return res.status(200).json({ message: "Xóa đánh giá thành công." });
 
     } catch (error) {
         next(error);

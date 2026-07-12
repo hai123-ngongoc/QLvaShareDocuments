@@ -28,9 +28,8 @@ function SuggestedDocuments({
 
   return (
     <section
-      className={`content-section suggested-documents suggested-documents--${variant} reveal-section ${
-        isVisible ? 'is-visible' : ''
-      }`}
+      className={`content-section suggested-documents suggested-documents--${variant} reveal-section ${isVisible ? 'is-visible' : ''
+        }`}
       aria-labelledby={headingId}
       ref={sectionRef}
     >
@@ -72,7 +71,11 @@ function SuggestedDocuments({
                 <div>
                   <h3>{document.title}</h3>
                   <p>
-                    {document.course} · {document.uploader} · {document.rating_count} đánh giá
+                    {document.course?.course_name || 'Chưa phân loại'}
+                    {' · '}
+                    {document.uploader?.username || 'Ẩn danh'}
+                    {' · '}
+                    {document.rating_count || 0} đánh giá
                   </p>
                 </div>
 
@@ -83,9 +86,8 @@ function SuggestedDocuments({
                   </div>
                   {href ? (
                     <span
-                      className={`bookmark bookmark--static ${
-                        document.is_favorite ? 'is-active' : ''
-                      }`}
+                      className={`bookmark bookmark--static ${document.is_favorite ? 'is-active' : ''
+                        }`}
                       aria-hidden="true"
                     >
                       ♥
@@ -106,7 +108,7 @@ function SuggestedDocuments({
 
               <div className="ai-summary">
                 <strong>✦ Tóm tắt AI</strong>
-                <p>{document.summary}</p>
+                <p>{document.summary || document.ai_summary || 'Chưa có tóm tắt AI.'}</p>
               </div>
 
               <div className="document-card__meta">

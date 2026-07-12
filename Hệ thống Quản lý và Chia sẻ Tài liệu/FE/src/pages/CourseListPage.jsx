@@ -1,23 +1,77 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Eye } from 'lucide-react'
 import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
-import { getCourseList } from '../data/homeSelectors'
+import { getCourses } from '../services/courseService'
+import { getDocuments } from '../services/documentService'
 
-const allCourses = getCourseList()
 const COURSES_PER_PAGE = 9
-const categories = ['Tất cả danh mục', ...new Set(allCourses.map((course) => course.faculty))]
 const sortOptions = [
   { value: 'popular', label: 'Xem nhiều nhất' },
   { value: 'documents', label: 'Nhiều tài liệu nhất' },
   { value: 'name', label: 'Tên học phần' },
 ]
 
+// BE không trả sẵn "shortName"/"color" (mock cũ tự bịa để trang trí UI) -> tự suy ra từ dữ liệu thật.
+const colorPalette = ['blue', 'purple', 'green', 'amber', 'pink', 'teal', 'red', 'indigo']
+
+function getCourseShortName(course) {
+  if (course.course_code) return course.course_code.slice(0, 4).toUpperCase()
+  return (course.course_name || '?').slice(0, 2).toUpperCase()
+}
+
+function getCourseColor(course) {
+  return colorPalette[course.id % colorPalette.length]
+}
+
 function CourseListPage() {
+  const [rawCourses, setRawCourses] = useState([])
+  const [documents, setDocuments] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState(categories[0])
+  const [selectedCategory, setSelectedCategory] = useState('Tất cả danh mục')
   const [sortBy, setSortBy] = useState(sortOptions[0].value)
   const [currentPage, setCurrentPage] = useState(0)
+
+  useEffect(() => {
+    Promise.all([getCourses(), getDocuments()])
+      .then(([coursesData, documentsData]) => {
+        setRawCourses(coursesData)
+        setDocuments(documentsData)
+      })
+      .catch((error) => setLoadError(error.message || 'Không tải được danh sách học phần.'))
+      .finally(() => setIsLoading(false))
+  }, [])
+
+  // Ráp lại field UI cần (name/code/documents/views/shortName/color) từ dữ liệu thật của BE:
+  // - documents: ưu tiên documents_count BE trả sẵn (GET /v1/courses), fallback đếm từ danh sách tài liệu.
+  // - views: BE chưa có cột "lượt xem học phần" -> cộng dồn view_count các tài liệu đã duyệt của học phần đó.
+  const allCourses = useMemo(() => {
+    return rawCourses.map((course) => {
+      const courseDocuments = documents.filter(
+        (document) => document.course_id === course.id && document.status === 'approved',
+      )
+      const totalViews = courseDocuments.reduce((sum, document) => sum + (document.view_count || 0), 0)
+
+      return {
+        id: course.id,
+        code: course.course_code,
+        name: course.course_name,
+        faculty: course.faculty,
+        description: course.description,
+        documents: course.documents_count != null ? Number(course.documents_count) : courseDocuments.length,
+        views: totalViews,
+        shortName: getCourseShortName(course),
+        color: getCourseColor(course),
+      }
+    })
+  }, [rawCourses, documents])
+
+  const categories = useMemo(
+    () => ['Tất cả danh mục', ...new Set(allCourses.map((course) => course.faculty).filter(Boolean))],
+    [allCourses],
+  )
 
   const visibleCourses = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase()
@@ -25,7 +79,7 @@ function CourseListPage() {
     return allCourses
       .filter((course) => {
         const matchesCategory =
-          selectedCategory === categories[0] || course.faculty === selectedCategory
+          selectedCategory === 'Tất cả danh mục' || course.faculty === selectedCategory
         const searchableText = `${course.name} ${course.code} ${course.description} ${course.faculty}`.toLowerCase()
         return matchesCategory && searchableText.includes(normalizedSearch)
       })
@@ -40,13 +94,13 @@ function CourseListPage() {
 
         return secondCourse.views - firstCourse.views
       })
-  }, [searchTerm, selectedCategory, sortBy])
+  }, [allCourses, searchTerm, selectedCategory, sortBy])
 
   const popularCourses = useMemo(() => {
     return [...allCourses]
       .sort((firstCourse, secondCourse) => secondCourse.views - firstCourse.views)
       .slice(0, 4)
-  }, [])
+  }, [allCourses])
   const pageCount = Math.max(1, Math.ceil(visibleCourses.length / COURSES_PER_PAGE))
   const activePage = Math.min(currentPage, pageCount - 1)
   const paginatedCourses = visibleCourses.slice(
@@ -123,26 +177,40 @@ function CourseListPage() {
           </button>
         </form>
 
-        <section className="course-list-grid" aria-label="Danh sách học phần">
-          {paginatedCourses.map((course) => (
-            <a className="document-card course-list-card" href={`/courses/${course.id}`} key={course.id}>
-              <span className={`course-card__icon course-card__icon--${course.color}`}>
-                {course.shortName}
-              </span>
-              <div>
-                <h2>{course.name}</h2>
-                <p>{course.description}</p>
-              </div>
-              <div className="document-card__meta">
-                <span>{course.documents} tài liệu</span>
-                <span>
-                  <Eye className="meta-icon" size={15} strokeWidth={2} aria-hidden="true" />
-                  {course.views.toLocaleString()} lượt xem
+        {loadError && (
+          <p className="course-list-error" role="alert">{loadError}</p>
+        )}
+
+        {isLoading && !loadError && (
+          <p className="course-list-loading">Đang tải danh sách học phần...</p>
+        )}
+
+        {!isLoading && !loadError && visibleCourses.length === 0 && (
+          <p className="course-list-empty">Không tìm thấy học phần phù hợp.</p>
+        )}
+
+        {!isLoading && !loadError && visibleCourses.length > 0 && (
+          <section className="course-list-grid" aria-label="Danh sách học phần">
+            {paginatedCourses.map((course) => (
+              <a className="document-card course-list-card" href={`/courses/${course.id}`} key={course.id}>
+                <span className={`course-card__icon course-card__icon--${course.color}`}>
+                  {course.shortName}
                 </span>
-              </div>
-            </a>
-          ))}
-        </section>
+                <div>
+                  <h2>{course.name}</h2>
+                  <p>{course.description}</p>
+                </div>
+                <div className="document-card__meta">
+                  <span>{course.documents} tài liệu</span>
+                  <span>
+                    <Eye className="meta-icon" size={15} strokeWidth={2} aria-hidden="true" />
+                    {course.views.toLocaleString()} lượt xem
+                  </span>
+                </div>
+              </a>
+            ))}
+          </section>
+        )}
 
         <nav className="pagination course-list-pagination" aria-label="Phân trang học phần">
           {Array.from({ length: pageCount }, (_, index) => (

@@ -1,5 +1,6 @@
 const Favorite = require('../../../model/favorites');
 const Document = require('../../../model/documents');
+const User = require('../../../model/auth');
 const createError = require('http-errors');
 
 //thêm yêu thích
@@ -39,7 +40,12 @@ const list = async (req, res, next) => {
             },
             include: [{
                 model: Document,
-                as: 'document'
+                as: 'document',
+                include: [{
+                    model: User,
+                    as: 'uploader',
+                    attributes: { exclude: ['password'] }
+                }]
             }]
         });
 

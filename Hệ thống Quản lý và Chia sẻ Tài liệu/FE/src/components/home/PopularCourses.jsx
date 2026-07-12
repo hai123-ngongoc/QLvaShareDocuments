@@ -29,6 +29,8 @@ const gridVariants = {
   }),
 }
 
+const ICON_COLORS = ['blue', 'green', 'purple', 'orange']
+
 const cardVariants = {
   initial: {
     opacity: 0,
@@ -44,7 +46,7 @@ const cardVariants = {
   },
 }
 
-function PopularCourses({ courses }) {
+function PopularCourses({ courses, totalCourses }) {
   const [sectionRef, isVisible] = useRevealOnce()
   const [currentPage, setCurrentPage] = useState(0)
   const [direction, setDirection] = useState('next')
@@ -69,15 +71,16 @@ function PopularCourses({ courses }) {
 
   return (
     <section
-      className={`content-section content-section--courses reveal-section ${
-        isVisible ? 'is-visible' : ''
-      }`}
+      className={`content-section content-section--courses reveal-section ${isVisible ? 'is-visible' : ''
+        }`}
       id="courses"
       ref={sectionRef}
     >
       <div className="section-heading section-heading--compact">
         <h2>Học phần phổ biến</h2>
-        <a href="/courses">Xem tất cả 86 học phần →</a>
+        <a href="/courses">
+          Xem tất cả {Number(totalCourses ?? courses.length ?? 0).toLocaleString('en-US')} học phần →
+        </a>
       </div>
 
       <AnimatePresence mode="wait" custom={direction}>
@@ -97,15 +100,18 @@ function PopularCourses({ courses }) {
               key={course.id}
               variants={cardVariants}
             >
-              <span className={`course-card__icon course-card__icon--${course.color}`}>
-                {course.shortName}
+              <span
+                className={`course-card__icon course-card__icon--${course.color || ICON_COLORS[course.id % ICON_COLORS.length]
+                  }`}
+              >
+                {course.shortName || course.course_code || course.course_name?.slice(0, 2)}
               </span>
               <div>
-                <h3>{course.name}</h3>
+                <h3>{course.name || course.course_name}</h3>
                 <p>
-                  {course.documents} tài liệu ·{' '}
+                  {Number(course.documents ?? course.documents_count ?? 0).toLocaleString()} tài liệu ·{' '}
                   <Eye className="meta-icon" size={14} strokeWidth={2} aria-hidden="true" />
-                  {course.views.toLocaleString()} lượt xem
+                  {Number(course.views ?? 0).toLocaleString()} lượt xem
                 </p>
               </div>
             </motion.a>

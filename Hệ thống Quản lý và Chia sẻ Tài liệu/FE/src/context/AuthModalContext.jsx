@@ -3,10 +3,16 @@ import LoginModal from '../components/auth/LoginModal'
 import AuthModalContext from './authModalContextValue'
 
 export function AuthModalProvider({ children, initialOpen = false, initialMode = 'login' }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => Boolean(localStorage.getItem('token'))
+  )
   const [isLoginOpen, setIsLoginOpen] = useState(initialOpen)
   const [authMode, setAuthMode] = useState(initialMode)
   const [pendingAction, setPendingAction] = useState(null)
+  const [user, setUser] = useState(() => {
+    const raw = localStorage.getItem('user')
+    return raw ? JSON.parse(raw) : null
+  })
 
   useEffect(() => {
     if (!isLoginOpen) return undefined
@@ -53,6 +59,9 @@ export function AuthModalProvider({ children, initialOpen = false, initialMode =
   )
 
   const completeLogin = useCallback(() => {
+    const raw = localStorage.getItem('user')
+    setUser(raw ? JSON.parse(raw) : null)
+
     const actionToResume = pendingAction
 
     setIsAuthenticated(true)
@@ -68,6 +77,13 @@ export function AuthModalProvider({ children, initialOpen = false, initialMode =
     }, 0)
   }, [pendingAction])
 
+  const logout = useCallback(() => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    setIsAuthenticated(false)
+    setUser(null)
+  }, [])
+
   const value = useMemo(
     () => ({
       closeLoginModal,
@@ -75,11 +91,14 @@ export function AuthModalProvider({ children, initialOpen = false, initialMode =
       authMode,
       isAuthenticated,
       isLoginOpen,
+      logout,
       openLoginModal,
       openRegisterModal,
       pendingAction,
       requireAuth,
       setAuthMode,
+      user,
+      setUser
     }),
     [
       authMode,

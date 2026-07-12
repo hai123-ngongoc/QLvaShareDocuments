@@ -1,50 +1,57 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Bookmark, Download, Eye, FileText } from 'lucide-react'
 import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
-import {
-  getCurrentUserProfile,
-  getMyLibraryDocuments,
-  getMyLibraryStats,
-  getSavedDocuments,
-} from '../data/homeSelectors'
-
-const profile = getCurrentUserProfile()
-const libraryStats = getMyLibraryStats()
-const myDocuments = getMyLibraryDocuments()
-const savedDocuments = getSavedDocuments()
-
-const profileStats = [
-  {
-    label: 'Tài liệu đã upload',
-    value: libraryStats.uploadedCount.toLocaleString(),
-    icon: FileText,
-    tone: 'amber',
-  },
-  {
-    label: 'Đã lưu',
-    value: libraryStats.savedCount.toLocaleString(),
-    icon: Bookmark,
-    tone: 'rose',
-  },
-  {
-    label: 'Lượt xem',
-    value: libraryStats.totalViews.toLocaleString(),
-    icon: Eye,
-    tone: 'emerald',
-  },
-  {
-    label: 'Lượt tải',
-    value: libraryStats.totalDownloads.toLocaleString(),
-    icon: Download,
-    tone: 'indigo',
-  },
-]
+import { getProfile } from '../services/authService'
+import { getDocuments } from '../services/documentService'
+import { getFavorites } from '../services/favoriteService'
+import { getCourses } from '../services/courseService'
+import { getAverageRating } from '../services/ratingService'
+import { getInitials } from '../utils/userDisplay'
 
 const tabs = ['Tài liệu của tôi', 'Đã lưu', 'Hoạt động', 'Cài đặt']
 
+const statusLabels = {
+  approved: 'Đã duyệt',
+  pending: 'Đang duyệt',
+  rejected: 'Bị từ chối',
+}
+
 function formatRating(value) {
   return Number(value || 0).toFixed(1)
+}
+
+function formatDate(dateValue) {
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(dateValue))
+}
+
+// Gọi average-rating thật cho từng document rồi gộp kết quả vào (id -> {avg_rating, rating_count}).
+async function attachRealRatings(documents) {
+  const ratingEntries = await Promise.all(
+    documents.map(async (document) => {
+      try {
+        const stats = await getAverageRating(document.id)
+        return [document.id, {
+          avg_rating: Number(stats.average_rating) || 0,
+          rating_count: Number(stats.total_ratings) || 0,
+        }]
+      } catch (error) {
+        console.error(error)
+        return [document.id, { avg_rating: 0, rating_count: 0 }]
+      }
+    }),
+  )
+
+  const ratingsById = Object.fromEntries(ratingEntries)
+
+  return documents.map((document) => ({
+    ...document,
+    ...ratingsById[document.id],
+  }))
 }
 
 const activities = [
@@ -83,16 +90,96 @@ const settings = [
 
 function MyLibraryPage() {
   const [activeTab, setActiveTab] = useState(tabs[0])
-  const shownDocuments = useMemo(() => {
-    if (activeTab === 'Đã lưu') {
-      return savedDocuments
-    }
+  const [profile, setProfile] = useState(null)
+  const [myDocuments, setMyDocuments] = useState([])
+  const [savedDocuments, setSavedDocuments] = useState([])
+  const [coursesById, setCoursesById] = useState({})
+  const [loading, setLoading] = useState(true)
 
-    return myDocuments
-  }, [activeTab])
+  useEffect(() => {
+    let currentUserId = null
+
+    getProfile()
+      .then((res) => {
+        setProfile(res.user)
+        currentUserId = res.user.id
+
+        return getDocuments()
+      })
+      .then((documents) => documents.filter((doc) => doc.user_id === currentUserId))
+      .then(attachRealRatings)
+      .then(setMyDocuments)
+      .catch(console.error)
+
+    getFavorites()
+      .then((favorites) => favorites.map((favorite) => favorite.document).filter(Boolean))
+      .then(attachRealRatings)
+      .then(setSavedDocuments)
+      .catch(console.error)
+
+    getCourses()
+      .then((courses) => {
+        const map = {}
+        courses.forEach((course) => { map[course.id] = course })
+        setCoursesById(map)
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  const libraryStats = useMemo(() => ({
+    uploadedCount: myDocuments.length,
+    savedCount: savedDocuments.length,
+    totalViews: myDocuments.reduce((sum, d) => sum + (d.view_count || 0), 0),
+    totalDownloads: myDocuments.reduce((sum, d) => sum + (d.download_count || 0), 0),
+  }), [myDocuments, savedDocuments])
+
+  const profileStats = [
+    {
+      label: 'Tài liệu đã upload',
+      value: libraryStats.uploadedCount.toLocaleString(),
+      icon: FileText,
+      tone: 'amber',
+    },
+    {
+      label: 'Đã lưu',
+      value: libraryStats.savedCount.toLocaleString(),
+      icon: Bookmark,
+      tone: 'rose',
+    },
+    {
+      label: 'Lượt xem',
+      value: libraryStats.totalViews.toLocaleString(),
+      icon: Eye,
+      tone: 'emerald',
+    },
+    {
+      label: 'Lượt tải',
+      value: libraryStats.totalDownloads.toLocaleString(),
+      icon: Download,
+      tone: 'indigo',
+    },
+  ]
+
+  const shownDocuments = useMemo(() => {
+    const source = activeTab === 'Đã lưu' ? savedDocuments : myDocuments
+
+    return source.map((document) => ({
+      ...document,
+      course: coursesById[document.course_id]?.course_name ?? 'Chưa phân loại',
+      statusLabel: statusLabels[document.status] ?? document.status,
+      uploadedAt: formatDate(document.created_at),
+      // document.uploader chỉ tồn tại ở tab "Đã lưu" (favorites API đã join uploader thật);
+      // tab "Tài liệu của tôi" không cần vì luôn là chính mình.
+      uploader: document.uploader?.username ?? 'Ẩn danh',
+    }))
+  }, [activeTab, myDocuments, savedDocuments, coursesById])
+
   const showDocuments = activeTab === 'Tài liệu của tôi' || activeTab === 'Đã lưu'
   const showActivity = activeTab === 'Tài liệu của tôi' || activeTab === 'Hoạt động'
   const isSavedTab = activeTab === 'Đã lưu'
+
+  if (loading || !profile) return null // TODO: thay bằng skeleton/loading UI nếu muốn
 
   return (
     <>
@@ -102,14 +189,14 @@ function MyLibraryPage() {
         <section className="library-profile" aria-labelledby="library-profile-title">
           <div className="library-profile__summary">
             <span className="library-profile__avatar" aria-hidden="true">
-              {profile.initials}
+              {getInitials(profile)}
             </span>
             <div>
-              <h1 id="library-profile-title">{profile.displayName}</h1>
+              <h1 id="library-profile-title">{profile.username}</h1>
               <p>{profile.email}</p>
               <div className="library-profile__meta">
-                <span>{profile.school}</span>
-                <span>{profile.faculty}</span>
+                <span>Chưa có dữ liệu</span>
+                <span>Chưa có dữ liệu</span>
               </div>
             </div>
           </div>
@@ -185,11 +272,11 @@ function MyLibraryPage() {
                   </span>
                   <span>
                     <Eye className="meta-icon" size={15} strokeWidth={2} aria-hidden="true" />
-                    {document.view_count.toLocaleString()} lượt xem
+                    {(document.view_count ?? 0).toLocaleString()} lượt xem
                   </span>
                   <span>
                     <Download className="meta-icon" size={15} strokeWidth={2} aria-hidden="true" />
-                    {document.download_count.toLocaleString()} lượt tải
+                    {(document.download_count ?? 0).toLocaleString()} lượt tải
                   </span>
                 </div>
               </article>

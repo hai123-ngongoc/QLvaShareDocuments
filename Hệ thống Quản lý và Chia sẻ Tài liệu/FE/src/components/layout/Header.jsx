@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import logo from '../../assets/logo.png'
 import useAuthModal from '../../hooks/useAuthModal'
 import useScrollDirection from '../../hooks/useScrollDirection'
+import { getInitials } from '../../utils/userDisplay'
 
 function Header({ showThemeToggle = true, variant = 'default', isAuthenticated: authOverride }) {
   const isVisible = useScrollDirection()
@@ -12,11 +13,23 @@ function Header({ showThemeToggle = true, variant = 'default', isAuthenticated: 
     isAuthenticated: modalAuthenticated,
     openLoginModal,
     openRegisterModal,
+    logout,
+    user,
   } = useAuthModal()
   const isAuthenticated = authOverride ?? modalAuthenticated
 
-  // check nếu document đã được render trước khi truy cập classList để tránh lỗi khi render phía server
+  const THEME_STORAGE_KEY = 'theme'
+
+  // Ưu tiên đọc từ localStorage (giữ lựa chọn của người dùng qua các lần chuyển trang),
+  // rồi mới fallback về class hiện có trên <html> (đã được set sẵn bởi script trong index.html).
   const [isLight, setIsLight] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      const saved = window.localStorage.getItem(THEME_STORAGE_KEY)
+      if (saved) return saved === 'light'
+    } catch (e) {
+      // bỏ qua nếu localStorage không truy cập được
+    }
     return typeof document !== 'undefined' && document.documentElement.classList.contains('light-theme')
   })
 
@@ -24,6 +37,12 @@ function Header({ showThemeToggle = true, variant = 'default', isAuthenticated: 
   useEffect(() => {
     if (isLight) document.documentElement.classList.add('light-theme')
     else document.documentElement.classList.remove('light-theme')
+
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, isLight ? 'light' : 'dark')
+    } catch (e) {
+      // bỏ qua nếu localStorage không truy cập được (vd: chế độ ẩn danh nghiêm ngặt)
+    }
   }, [isLight])
 
   const themeToggle = showThemeToggle && (
@@ -39,11 +58,9 @@ function Header({ showThemeToggle = true, variant = 'default', isAuthenticated: 
 
   return (
     <header
-      className={`site-header ${isProfileVariant ? 'site-header--profile' : ''} ${
-        isVisible ? 'site-header--visible' : 'site-header--hidden'
-      } ${isAuthenticated ? '' : 'site-header--guest'} ${
-        isMenuOpen ? 'site-header--menu-open' : ''
-      }`}
+      className={`site-header ${isProfileVariant ? 'site-header--profile' : ''} ${isVisible ? 'site-header--visible' : 'site-header--hidden'
+        } ${isAuthenticated ? '' : 'site-header--guest'} ${isMenuOpen ? 'site-header--menu-open' : ''
+        }`}
     >
       <div className="site-header__inner">
         <a className="brand" href="/" aria-label="DOC homepage">
@@ -79,9 +96,12 @@ function Header({ showThemeToggle = true, variant = 'default', isAuthenticated: 
                 + Upload
               </a>
               {themeToggle}
-              <a className="avatar" href="/profile" aria-label="Tài khoản Gia Hân">
-                GH
+              <a className="avatar" href="/profile" aria-label={`Tài khoản ${user?.username || ''}`}>
+                {getInitials(user)}
               </a>
+              <button type="button" className="button button--ghost" onClick={logout}>
+                Đăng xuất
+              </button>
             </>
           ) : (
             <>

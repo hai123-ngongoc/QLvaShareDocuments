@@ -1,17 +1,34 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" sizes="any" href="/doc-favicon.svg?v=7" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=7" />
-    <link rel="icon" type="image/png" sizes="64x64" href="/doc-favicon.png?v=7" />
-    <link rel="shortcut icon" href="/doc-favicon.png?v=7" />
-    <link rel="apple-touch-icon" href="/doc-favicon.png?v=7" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>mydoc</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" sizes="any" href="/doc-favicon.svg?v=7" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=7" />
+  <link rel="icon" type="image/png" sizes="64x64" href="/doc-favicon.png?v=7" />
+  <link rel="shortcut icon" href="/doc-favicon.png?v=7" />
+  <link rel="apple-touch-icon" href="/doc-favicon.png?v=7" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mydoc</title>
+  <script>
+    // Áp dụng theme đã lưu NGAY LẬP TỨC, trước khi React render, để tránh
+    // nhấp nháy sai giao diện mỗi khi chuyển trang (dự án dùng <a href> nên
+    // mỗi lần chuyển trang là tải lại toàn bộ document, không phải điều hướng SPA).
+    (function () {
+      try {
+        if (localStorage.getItem('theme') === 'light') {
+          document.documentElement.classList.add('light-theme')
+        }
+      } catch (e) {
+        // localStorage có thể bị chặn (chế độ ẩn danh nghiêm ngặt...): bỏ qua, dùng mặc định (tối)
+      }
+    })()
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>

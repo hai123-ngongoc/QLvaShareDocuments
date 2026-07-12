@@ -10,58 +10,68 @@ Document.belongsTo(Course, {
     as: 'course'
 });
 
-Document.hasMany(Rating, { 
+Document.belongsTo(User, {
+    foreignKey: 'user_id',
+    as: 'uploader'
+});
+
+Document.hasMany(Rating, {
     foreignKey: 'document_id',
     as: 'ratings'
 });
 
-Course.hasMany(Document, { 
+Course.hasMany(Document, {
     foreignKey: 'course_id',
     as: 'documents'
 });
 
-Document.hasMany(Download, { 
+Document.hasMany(Download, {
     foreignKey: 'document_id',
     as: 'downloads'
 });
 
-Download.belongsTo(Document, { 
+Download.belongsTo(Document, {
     foreignKey: 'document_id',
     as: 'document'
 });
 
-User.hasMany(Download, { 
+User.hasMany(Download, {
     foreignKey: 'user_id',
     as: 'downloads'
 });
 
-Download.belongsTo(User, { 
+Download.belongsTo(User, {
     foreignKey: 'user_id',
     as: 'user'
 });
 
-Document.hasMany(Favorite, { 
+Document.hasMany(Favorite, {
     foreignKey: 'document_id',
     as: 'favorites'
 });
 
-Favorite.belongsTo(Document, { 
+Favorite.belongsTo(Document, {
     foreignKey: 'document_id',
     as: 'document'
 });
 
-User.hasMany(Favorite, { 
+User.hasMany(Favorite, {
     foreignKey: 'user_id',
     as: 'favorites'
 });
 
-Favorite.belongsTo(User, { 
+Favorite.belongsTo(User, {
     foreignKey: 'user_id',
     as: 'user'
 });
 
-module.exports = { 
-    Document, 
+Rating.belongsTo(User, {
+    foreignKey: 'user_id',
+    as: 'user'
+});
+
+module.exports = {
+    Document,
     Course,
     Rating,
     User,

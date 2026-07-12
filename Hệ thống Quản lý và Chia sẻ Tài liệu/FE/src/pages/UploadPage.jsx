@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ChevronDown,
   FileArchive,
@@ -10,13 +10,9 @@ import {
 } from 'lucide-react'
 import Footer from '../components/layout/Footer'
 import Header from '../components/layout/Header'
-import {
-  getCurrentUserProfile,
-  getUploadCourseOptions,
-} from '../data/homeSelectors'
+import { getCourses } from '../services/courseService'
+import { uploadDocument } from '../services/documentService'
 
-const { faculties, courses } = getUploadCourseOptions()
-const currentUser = getCurrentUserProfile()
 const supportedTypes = ['PDF', 'DOCX', 'PPTX', 'ZIP']
 const maxFileSizeMb = 50
 
@@ -50,14 +46,31 @@ function formatFileSize(size) {
 
 function UploadPage() {
   const fileInputRef = useRef(null)
+  const [courses, setCourses] = useState([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [faculty, setFaculty] = useState(faculties[0] ?? '')
+  const [faculty, setFaculty] = useState('')
+
+  useEffect(() => {
+    getCourses().then((data) => {
+      setCourses(data)
+      if (data.length > 0) {
+        setFaculty((current) => current || data[0].faculty)
+      }
+    }).catch(console.error)
+  }, [])
+
+  const faculties = useMemo(
+    () => [...new Set(courses.map((course) => course.faculty).filter(Boolean))],
+    [courses],
+  )
   const filteredCourses = useMemo(() => {
     return courses.filter((course) => course.faculty === faculty)
-  }, [faculty])
+  }, [courses, faculty])
   const [courseId, setCourseId] = useState(filteredCourses[0]?.id ?? '')
   const [tagInput, setTagInput] = useState('')
   const [tags, setTags] = useState([])
@@ -127,34 +140,47 @@ function UploadPage() {
     setTags([])
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-    const createdAt = new Date().toISOString()
+    setErrorMessage('')
 
-    const payload = {
-      title,
-      description,
-      file_url: selectedFile ? `/documents/${selectedFile.name}` : '',
-      file_type: selectedFileType,
-      course_id: Number(activeCourseId),
-      user_id: currentUser.id,
-      status: 'pending',
-      created_at: createdAt,
-      // TODO: cần backend bổ sung file_type 'xlsx' nếu muốn upload Excel như một loại riêng.
-      // TODO: cần backend bổ sung bảng tags nếu muốn chuẩn hóa thay vì lưu chuỗi.
-      tags: tags.join(','),
+    if (!selectedFile) {
+      setErrorMessage('Vui lòng chọn file để upload.')
+      return
+    }
+    if (!title.trim()) {
+      setErrorMessage('Vui lòng nhập tên tài liệu.')
+      return
+    }
+    if (!activeCourseId) {
+      setErrorMessage('Vui lòng chọn học phần.')
+      return
     }
 
-    console.info('Mock documents insert payload:', payload)
+    setIsSubmitting(true)
 
-    const params = new URLSearchParams({
-      title: payload.title || 'Tài liệu mới',
-      course_name: selectedCourse?.course_name ?? 'Chưa chọn học phần',
-      file_type: payload.file_type ?? 'pdf',
-      created_at: payload.created_at,
-    })
+    // TODO: cần backend bổ sung bảng tags nếu muốn chuẩn hóa thay vì lưu chuỗi (hiện chưa gửi tags lên).
+    const formData = new FormData()
+    formData.append('title', title.trim())
+    formData.append('description', description)
+    formData.append('course_id', String(activeCourseId))
+    formData.append('file', selectedFile) // tên field PHẢI là "file" (multer .single("file"))
 
-    window.location.assign(`/upload/success?${params.toString()}`)
+    try {
+      await uploadDocument(formData)
+
+      const params = new URLSearchParams({
+        title: title.trim() || 'Tài liệu mới',
+        course_name: selectedCourse?.course_name ?? 'Chưa chọn học phần',
+        file_type: selectedFileType ?? 'pdf',
+        created_at: new Date().toISOString(),
+      })
+
+      window.location.assign(`/upload/success?${params.toString()}`)
+    } catch (error) {
+      setIsSubmitting(false)
+      setErrorMessage(error.message || 'Có lỗi xảy ra khi upload, vui lòng thử lại.')
+    }
   }
 
   return (
@@ -173,9 +199,8 @@ function UploadPage() {
             aria-labelledby="upload-file-title"
           >
             <div
-              className={`upload-page__dropzone ${
-                isDragging ? 'upload-page__dropzone--active' : ''
-              }`}
+              className={`upload-page__dropzone ${isDragging ? 'upload-page__dropzone--active' : ''
+                }`}
               onDragEnter={(event) => {
                 event.preventDefault()
                 setIsDragging(true)
@@ -322,12 +347,21 @@ function UploadPage() {
             <input type="hidden" name="course_id" value={selectedCourse?.id ?? ''} />
           </section>
 
+          {errorMessage && (
+            <p className="upload-page__error" role="alert">{errorMessage}</p>
+          )}
+
           <div className="upload-page__actions">
-            <button className="button upload-page__secondary" type="button" onClick={resetForm}>
+            <button
+              className="button upload-page__secondary"
+              type="button"
+              onClick={resetForm}
+              disabled={isSubmitting}
+            >
               Hủy
             </button>
-            <button className="button button--primary" type="submit">
-              Đăng tài liệu
+            <button className="button button--primary" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Đang upload...' : 'Đăng tài liệu'}
             </button>
           </div>
         </form>

@@ -1,22 +1,23 @@
-const {Router} = require('express');
-const {list, get, create, remove, update, download, search, viewFile, getAverageRating, getPendingDocuments, approveDocument, rejectDocument} = require('./controller');
+const { Router } = require('express');
+const { list, get, create, remove, update, download, search, viewFile, getAverageRating, getPendingDocuments, approveDocument, rejectDocument } = require('./controller');
 const upload = require('../middleware/upload');
 const verifyToken = require('../middleware/verifyToken');
+const optionalAuth = require('../middleware/optionalAuth');
 const isAdmin = require('../middleware/isAdmin');
 
 const route = new Router();
 
-//lấy danh sách tài liệu
-route.get('/', list,);
+//lấy danh sách tài liệu (công khai, nhưng optionalAuth để chủ tài liệu thấy thêm bài pending/rejected của chính mình)
+route.get('/', optionalAuth, list,);
 
 //điểm đánh giá
 route.get("/:id/average-rating", getAverageRating);
 
 //tìm kiếm tài liệu
-route.get('/search', search);
+route.get('/search', optionalAuth, search);
 
 //lấy chi tiết tài liệu
-route.get('/:id', get,);
+route.get('/:id', optionalAuth, get,);
 
 //thêm tài liệu mới
 // route.post('/', create,);
@@ -29,7 +30,7 @@ route.delete('/:id', verifyToken, remove,);
 route.put('/:id', verifyToken, update,);
 
 //xem tài liệu
-route.get("/:id/view", viewFile);
+route.get("/:id/view", optionalAuth, viewFile);
 
 //download tài liệu
 route.get('/download/:id', verifyToken, download);

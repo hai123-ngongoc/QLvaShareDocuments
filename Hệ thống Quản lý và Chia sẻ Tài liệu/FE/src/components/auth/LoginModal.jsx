@@ -1,5 +1,6 @@
 import { Eye, EyeOff, Lock, Mail, User, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { login, register } from '../../services/authService'
 import logo from '../../assets/logo.png'
 
 function GoogleIcon() {
@@ -68,7 +69,7 @@ function LoginModal({ isOpen, mode = 'login', onClose, onModeChange, onSuccess, 
     onModeChange(nextMode)
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     if (isSubmitting) return
 
@@ -91,12 +92,24 @@ function LoginModal({ isOpen, mode = 'login', onClose, onModeChange, onSuccess, 
 
     setIsSubmitting(true)
 
-    window.setTimeout(() => {
+    try {
+      if (isRegisterMode) {
+        await register({ username: username.trim(), email: email.trim(), password })
+      }
+
+      const data = await login({ username: email.trim(), password })
+
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('user', JSON.stringify(data.user))
+
       setIsSubmitting(false)
       setPassword('')
       setConfirmPassword('')
       onSuccess()
-    }, 800)
+    } catch (error) {
+      setIsSubmitting(false)
+      setErrorMessage(error.message || 'Có lỗi xảy ra, vui lòng thử lại.')
+    }
   }
 
   if (!isOpen) return null

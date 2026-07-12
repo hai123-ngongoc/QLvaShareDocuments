@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Download,
   Eye,
@@ -12,12 +12,17 @@ import {
 } from 'lucide-react'
 import Footer from '../components/layout/Footer'
 import Header from '../components/layout/Header'
-import SuggestedDocuments from '../components/home/SuggestedDocuments'
 import useAuthModal from '../hooks/useAuthModal'
-import {
-  getDocumentDetail,
-  getSuggestedDocumentsForDocument,
-} from '../data/homeSelectors'
+import { getDocument, getPreviewUrl, downloadDocumentFile } from '../services/documentService'
+import { getCourse } from '../services/courseService'
+import { getRatingsForDocument, getAverageRating, addRating } from '../services/ratingService'
+import { checkFavorite, addFavorite, removeFavorite } from '../services/favoriteService'
+
+const statusLabels = {
+  approved: 'Đã duyệt',
+  pending: 'Đang duyệt',
+  rejected: 'Bị từ chối',
+}
 
 function getDocumentIdFromPath() {
   if (typeof window === 'undefined') return 1
@@ -32,8 +37,8 @@ function getDocumentIdFromPath() {
 }
 
 function renderFileIcon(fileType, size = 18) {
-  if (fileType === 'ppt') return <Presentation size={size} strokeWidth={2} />
-  if (fileType === 'docx') return <FileType size={size} strokeWidth={2} />
+  if (fileType === 'ppt' || fileType === 'pptx') return <Presentation size={size} strokeWidth={2} />
+  if (fileType === 'docx' || fileType === 'doc') return <FileType size={size} strokeWidth={2} />
   if (fileType === 'zip') return <FileArchive size={size} strokeWidth={2} />
   return <FileText size={size} strokeWidth={2} />
 }
@@ -55,18 +60,59 @@ function formatRating(value) {
   return Number(value || 0).toFixed(1)
 }
 
-function isMockFileUrl(fileUrl) {
-  return fileUrl?.startsWith('/documents/')
+function formatDate(dateValue) {
+  if (!dateValue) return ''
+  return new Intl.DateTimeFormat('vi-VN').format(new Date(dateValue))
 }
 
 function DocumentDetailPage() {
-  const { isAuthenticated, requireAuth } = useAuthModal()
-  const document = getDocumentDetail(getDocumentIdFromPath(), isAuthenticated ? undefined : null)
+  const { isAuthenticated, requireAuth, user } = useAuthModal()
+  const documentId = getDocumentIdFromPath()
+
+  const [document, setDocument] = useState(null)
+  const [notFound, setNotFound] = useState(false)
+  const [course, setCourse] = useState(null)
+  const [ratings, setRatings] = useState([])
+  const [avgRating, setAvgRating] = useState({ average_rating: '0.0', total_ratings: 0 })
+  const [isFavorite, setIsFavorite] = useState(false)
   const [selectedRating, setSelectedRating] = useState(5)
   const [comment, setComment] = useState('')
-  const suggestions = document ? getSuggestedDocumentsForDocument(document.id) : []
+  const [reviewError, setReviewError] = useState('')
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false)
 
-  if (!document) {
+  useEffect(() => {
+    setDocument(null)
+    setNotFound(false)
+
+    getDocument(documentId)
+      .then(setDocument)
+      .catch(() => setNotFound(true))
+
+    getRatingsForDocument(documentId).then(setRatings).catch(console.error)
+    getAverageRating(documentId).then(setAvgRating).catch(console.error)
+
+    if (isAuthenticated) {
+      checkFavorite(documentId)
+        .then((res) => setIsFavorite(res.favorite))
+        .catch(console.error)
+    }
+  }, [documentId, isAuthenticated])
+
+  useEffect(() => {
+    if (!document?.course_id) {
+      setCourse(null)
+      return
+    }
+
+    getCourse(document.course_id).then(setCourse).catch(console.error)
+  }, [document?.course_id])
+
+  const refreshRatings = () => {
+    getRatingsForDocument(documentId).then(setRatings).catch(console.error)
+    getAverageRating(documentId).then(setAvgRating).catch(console.error)
+  }
+
+  if (notFound) {
     return (
       <>
         <Header />
@@ -81,27 +127,48 @@ function DocumentDetailPage() {
     )
   }
 
-  const isPdf = document.file_type === 'pdf'
-  const fileName = document.file_url.split('/').pop()
-  // TODO: cần backend trả file_url trỏ tới file thật/public storage để bật preview PDF.
-  const hasUsableFileUrl = Boolean(document.file_url) && !isMockFileUrl(document.file_url)
-  const canPreviewPdf = isPdf && hasUsableFileUrl
+  if (!document) {
+    return (
+      <>
+        <Header />
+        <main className="document-detail-page" />
+        <Footer />
+      </>
+    )
+  }
+
+  const normalizedFileType = (document.file_type || '').toLowerCase()
+  const isPdf = normalizedFileType.includes('pdf')
+  const fileName = document.file_url ? document.file_url.split('/').pop() : 'tai-lieu'
+  const previewUrl = getPreviewUrl(documentId)
+  const canPreviewPdf = isPdf && Boolean(document.file_url)
+  const statusLabel = statusLabels[document.status] ?? document.status
   const aiSummaryText =
     document.ai_summary?.trim() || 'Chưa có tóm tắt AI cho tài liệu này.'
-  const openFile = () => {
-    if (!hasUsableFileUrl) return
-    window.open(document.file_url, '_blank', 'noopener,noreferrer')
-  }
-  const downloadFile = () => {
-    if (!hasUsableFileUrl) return
+  const currentUserId = user?.id
+  const canReview = isAuthenticated && !ratings.some((review) => review.user_id === currentUserId)
 
-    const link = window.document.createElement('a')
-    link.href = document.file_url
-    link.download = fileName
-    window.document.body.appendChild(link)
-    link.click()
-    link.remove()
+  const openFile = () => {
+    window.open(previewUrl, '_blank', 'noopener,noreferrer')
   }
+
+  const downloadFile = async () => {
+    try {
+      const blob = await downloadDocumentFile(documentId)
+      const objectUrl = window.URL.createObjectURL(blob)
+
+      const link = window.document.createElement('a')
+      link.href = objectUrl
+      link.download = fileName
+      window.document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(objectUrl)
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
   const requestFileOpen = () => {
     requireAuth({
       label: `Đăng nhập để xem đầy đủ "${document.title}".`,
@@ -117,8 +184,18 @@ function DocumentDetailPage() {
   const requestFavorite = () => {
     requireAuth({
       label: `Đăng nhập để lưu "${document.title}" vào yêu thích.`,
-      onSuccess: () => {
-        // TODO: gọi API favorites để lưu document_id cho user hiện tại.
+      onSuccess: async () => {
+        try {
+          if (isFavorite) {
+            await removeFavorite(documentId)
+            setIsFavorite(false)
+          } else {
+            await addFavorite(documentId)
+            setIsFavorite(true)
+          }
+        } catch (error) {
+          console.error(error)
+        }
       },
     })
   }
@@ -134,6 +211,23 @@ function DocumentDetailPage() {
     })
   }
 
+  const submitReview = async (event) => {
+    event.preventDefault()
+    setReviewError('')
+    setIsSubmittingReview(true)
+
+    try {
+      await addRating({ documentId, rating: selectedRating, comment })
+      setComment('')
+      setSelectedRating(5)
+      refreshRatings()
+    } catch (error) {
+      setReviewError(error.message || 'Có lỗi xảy ra khi gửi đánh giá.')
+    } finally {
+      setIsSubmittingReview(false)
+    }
+  }
+
   return (
     <>
       <Header />
@@ -142,16 +236,20 @@ function DocumentDetailPage() {
         <nav className="document-detail-breadcrumb" aria-label="Breadcrumb">
           <a href="/courses">Học phần</a>
           <span aria-hidden="true">›</span>
-          <a href={`/courses/${document.courseId}`}>{document.courseName}</a>
-          <span aria-hidden="true">›</span>
+          {course && (
+            <>
+              <a href={`/courses/${course.id}`}>{course.course_name}</a>
+              <span aria-hidden="true">›</span>
+            </>
+          )}
           <span>{document.title}</span>
         </nav>
 
         <div className="document-detail-layout">
           <section className="document-preview-card" aria-labelledby="document-preview-title">
             <div className="document-preview-card__bar">
-              <span className={`document-preview-card__type document-preview-card__type--${document.file_type}`}>
-                {document.file_type.toUpperCase()}
+              <span className={`document-preview-card__type document-preview-card__type--${normalizedFileType}`}>
+                {normalizedFileType ? normalizedFileType.toUpperCase() : 'FILE'}
               </span>
               <strong>{fileName}</strong>
               <div className="document-preview-card__actions">
@@ -177,7 +275,7 @@ function DocumentDetailPage() {
             <div className="document-preview-card__frame">
               {canPreviewPdf ? (
                 <div className="document-preview-card__iframe-wrap">
-                  <iframe src={document.file_url} title="Xem trước tài liệu" />
+                  <iframe src={previewUrl} title="Xem trước tài liệu" />
                   <p>
                     Nếu bản xem trước chưa hiển thị, hãy mở tài liệu trong tab mới hoặc tải
                     xuống.
@@ -185,9 +283,9 @@ function DocumentDetailPage() {
                 </div>
               ) : (
                 <div className="document-preview-card__placeholder">
-                  {renderFileIcon(document.file_type, 46)}
-                  <strong>Chưa có dữ liệu</strong>
-                  <span>File xem trước sẽ hiển thị khi backend cung cấp file_url thật.</span>
+                  {renderFileIcon(normalizedFileType, 46)}
+                  <strong>Chưa hỗ trợ xem trước</strong>
+                  <span>Chỉ hỗ trợ xem trước trực tiếp file PDF. Hãy tải xuống để xem.</span>
                 </div>
               )}
             </div>
@@ -199,16 +297,16 @@ function DocumentDetailPage() {
             <section className="document-info-card">
               {document.status !== 'approved' && (
                 <span className={`status-badge status-badge--${document.status}`}>
-                  {document.statusLabel}
+                  {statusLabel}
                 </span>
               )}
               <h1>{document.title}</h1>
               <p>{document.description}</p>
 
               <div className="document-detail-rating" aria-label="Đánh giá trung bình">
-                <span>{renderStars(document.avg_rating)}</span>
-                <strong>{formatRating(document.avg_rating)}</strong>
-                <small>({document.rating_count} đánh giá)</small>
+                <span>{renderStars(avgRating.average_rating)}</span>
+                <strong>{formatRating(avgRating.average_rating)}</strong>
+                <small>({avgRating.total_ratings ?? 0} đánh giá)</small>
               </div>
 
               <div className="document-detail-actions">
@@ -221,12 +319,12 @@ function DocumentDetailPage() {
                   Tải xuống
                 </button>
                 <button
-                  className="icon-button"
+                  className={`icon-button ${isFavorite ? 'is-active' : ''}`}
                   type="button"
                   aria-label="Yêu thích tài liệu"
                   onClick={requestFavorite}
                 >
-                  <Heart size={18} strokeWidth={2} />
+                  <Heart size={18} strokeWidth={2} fill={isFavorite ? 'currentColor' : 'none'} />
                 </button>
                 <button className="icon-button" type="button" aria-label="Chia sẻ tài liệu">
                   <Share2 size={18} strokeWidth={2} />
@@ -236,25 +334,25 @@ function DocumentDetailPage() {
               <dl className="document-detail-facts">
                 <div>
                   <dt>Ngày đăng</dt>
-                  <dd>{new Intl.DateTimeFormat('vi-VN').format(new Date(document.created_at))}</dd>
+                  <dd>{formatDate(document.created_at)}</dd>
                 </div>
                 <div>
                   <dt>Loại file</dt>
-                  <dd>{document.file_type.toUpperCase()}</dd>
+                  <dd>{normalizedFileType ? normalizedFileType.toUpperCase() : 'Chưa rõ'}</dd>
                 </div>
                 <div>
                   <dt>Học phần</dt>
-                  <dd>{document.courseName}</dd>
+                  <dd>{course?.course_name ?? 'Chưa có dữ liệu'}</dd>
                 </div>
               </dl>
 
               <div className="document-detail-counters">
                 <div>
-                  <strong>{document.view_count.toLocaleString()}</strong>
+                  <strong>{(document.view_count ?? 0).toLocaleString()}</strong>
                   <span>Lượt xem</span>
                 </div>
                 <div>
-                  <strong>{document.download_count.toLocaleString()}</strong>
+                  <strong>{(document.download_count ?? 0).toLocaleString()}</strong>
                   <span>Lượt tải</span>
                 </div>
               </div>
@@ -263,8 +361,10 @@ function DocumentDetailPage() {
             <section className="document-author-card" aria-labelledby="document-author-title">
               <h2 id="document-author-title">Người đăng</h2>
               <div className="document-author-card__profile">
-                <span aria-hidden="true">{document.author.initials}</span>
-                <strong>{document.author.username}</strong>
+                <span aria-hidden="true">
+                  {(document.uploader?.username ?? '?').charAt(0).toUpperCase()}
+                </span>
+                <strong>{document.uploader?.username ?? `Người dùng #${document.user_id}`}</strong>
               </div>
             </section>
           </aside>
@@ -278,7 +378,7 @@ function DocumentDetailPage() {
         <section className="document-reviews" aria-labelledby="document-reviews-title">
           <div className="document-section-heading">
             <h2 id="document-reviews-title">Đánh giá</h2>
-            <span>{document.rating_count} lượt đánh giá</span>
+            <span>{avgRating.total_ratings ?? 0} lượt đánh giá</span>
           </div>
 
           {!isAuthenticated && (
@@ -291,11 +391,8 @@ function DocumentDetailPage() {
             </button>
           )}
 
-          {document.canReview && (
-            <form
-              className="document-review-form"
-              onSubmit={(event) => event.preventDefault()}
-            >
+          {canReview && (
+            <form className="document-review-form" onSubmit={submitReview}>
               <div className="document-review-form__stars" aria-label="Chọn số sao">
                 {Array.from({ length: 5 }, (_, index) => {
                   const starValue = index + 1
@@ -322,26 +419,26 @@ function DocumentDetailPage() {
                   rows={4}
                 />
               </label>
-              <button className="button button--primary" type="submit">
-                Gửi đánh giá
+              {reviewError && (
+                <p className="document-review-form__error" role="alert">{reviewError}</p>
+              )}
+              <button className="button button--primary" type="submit" disabled={isSubmittingReview}>
+                {isSubmittingReview ? 'Đang gửi...' : 'Gửi đánh giá'}
               </button>
-              <p className="document-review-form__note">
-                TODO: cần backend nối API ratings để lưu đánh giá thật.
-              </p>
             </form>
           )}
 
           <div className="document-review-list">
-            {document.reviews.map((review) => (
+            {ratings.map((review) => (
               <article className="document-review-row" key={review.id}>
                 <span className="document-review-row__avatar" aria-hidden="true">
-                  {review.initials}
+                  {(review.user?.username ?? '?').charAt(0).toUpperCase()}
                 </span>
                 <div>
                   <div className="document-review-row__top">
-                    <strong>{review.username}</strong>
+                    <strong>{review.user?.username ?? `Người dùng #${review.user_id}`}</strong>
                     <span>{renderStars(review.rating)}</span>
-                    <time>{review.createdAt}</time>
+                    <time>{formatDate(review.created_at)}</time>
                   </div>
                   <p>{review.comment ?? 'Người dùng đã đánh giá tài liệu này.'}</p>
                 </div>
@@ -350,16 +447,7 @@ function DocumentDetailPage() {
           </div>
         </section>
 
-        {suggestions.length > 0 && (
-          <SuggestedDocuments
-            documents={suggestions}
-            headingId="document-suggestions-title"
-            showFilters={false}
-            showFooterControls={false}
-            getDocumentHref={(suggestedDocument) => `/documents/${suggestedDocument.id}`}
-            variant="compact"
-          />
-        )}
+        {/* TODO: BE không có API cho ai_related_documents -> ẩn tài liệu gợi ý cho tới khi có endpoint. */}
       </main>
 
       <Footer />

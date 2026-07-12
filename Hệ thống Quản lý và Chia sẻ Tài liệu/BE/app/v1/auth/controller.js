@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../../../model/auth');
+const { Op } = require('sequelize');
 
 // Register a new user
 const register = async (req, res) => {
@@ -50,7 +51,9 @@ const login = async (req, res) => {
         const { username, password } = req.body;
 
         const user = await User.findOne({
-            where: { username }
+            where: {
+                [Op.or]: [{ username }, { email: username }]
+            }
         });
 
         if (!user) {
@@ -58,7 +61,7 @@ const login = async (req, res) => {
         }
 
         const check = await bcrypt.compare(
-            password, 
+            password,
             user.password
         );
 
@@ -67,14 +70,14 @@ const login = async (req, res) => {
         }
 
         const token = jwt.sign(
-            { 
-                id: user.id, 
-                username: user.username, 
-                role: user.role 
+            {
+                id: user.id,
+                username: user.username,
+                role: user.role
             },
             process.env.JWT_SECRET,
-            { 
-                expiresIn: '7d' 
+            {
+                expiresIn: '7d'
             }
         );
 
@@ -101,7 +104,7 @@ const login = async (req, res) => {
 const profile = async (req, res) => {
     try {
         const user = await User.findByPk(
-            req.user.id, 
+            req.user.id,
             {
                 attributes: {
                     exclude: ['password']
@@ -127,20 +130,20 @@ const changePassword = async (req, res) => {
     try {
         const { oldPassword, newPassword } = req.body;
 
-        const user = await User.findByPk(req.user.id);
-
-        const check = await bcrypt.compare(oldPassword, user.password);
-
-        if (!check) {
-            return res.status(400).json({ message: 'Mật khẩu cũ không đúng.' });
-        }
-
         if (!oldPassword || !newPassword) {
             return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin.' });
         }
 
         if (oldPassword === newPassword) {
             return res.status(400).json({ message: 'Mật khẩu mới không được trùng với mật khẩu cũ.' });
+        }
+
+        const user = await User.findByPk(req.user.id);
+
+        const check = await bcrypt.compare(oldPassword, user.password);
+
+        if (!check) {
+            return res.status(400).json({ message: 'Mật khẩu cũ không đúng.' });
         }
 
         const hash = await bcrypt.hash(newPassword, 10);
@@ -185,7 +188,9 @@ const deleteUser = async (req, res) => {
             return res.status(404).json({ message: 'Người dùng không tồn tại.' });
         }
 
-        if (req.user.id === req.params.id) {
+        // req.user.id lấy từ JWT là số, còn req.params.id lấy từ URL luôn là chuỗi
+        // -> phải ép kiểu trước khi so sánh, nếu không điều kiện chặn tự-xoá sẽ luôn sai (bug đã xác nhận qua test).
+        if (Number(req.user.id) === Number(req.params.id)) {
             return res.status(400).json({ message: 'Bạn không thể tự xóa tài khoản của mình.' });
         }
 
