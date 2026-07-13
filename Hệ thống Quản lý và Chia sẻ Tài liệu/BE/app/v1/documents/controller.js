@@ -8,6 +8,7 @@ const Course = require('../../../model/courses');
 const Download = require('../../../model/downloads');
 const Rating = require('../../../model/rating');
 const User = require('../../../model/auth');
+const Notification = require('../../../model/notification');
 const { fn, col } = require('sequelize');
 const { buildVisibilityWhere } = require('./visibility');
 const { resolveUploadedFilePath } = require('./fileStorage');
@@ -178,6 +179,16 @@ const remove = async (req, res, next) => {
             return res.status(404).json({ message: 'Tài liệu không tồn tại' });
         }
 
+        // Tạo thông báo cho chủ tài liệu khi admin xóa (không thông báo khi user tự xóa)
+        if (req.user.role === 'admin' && document.user_id && document.user_id !== req.user.id) {
+            await Notification.create({
+                user_id: document.user_id,
+                document_id: null, // document sắp bị xóa nên set null
+                type: 'deleted',
+                message: `Tài liệu "${document.title}" của bạn đã bị xóa bởi quản trị viên.`
+            });
+        }
+
         await document.destroy();
 
         return res.status(200).json({ message: 'Xóa tài liệu thành công' });
@@ -214,6 +225,9 @@ const update = async (req, res, next) => {
             return res.status(404).json({ message: 'Document not found' });
         }
 
+        // Lưu lại trạng thái cũ để phát hiện thay đổi và gửi thông báo tương ứng
+        const oldStatus = document.status;
+
         document.title = title ?? document.title;
         document.description = description ?? document.description;
         document.course_id = course_id ?? document.course_id;
@@ -228,6 +242,28 @@ const update = async (req, res, next) => {
         }
 
         await document.save();
+
+        // Nếu admin đổi trạng thái tài liệu (qua route sửa tài liệu này) thì gửi thông báo
+        // cho chủ tài liệu, tương tự như khi dùng route approve/reject riêng.
+        if (req.user.role === 'admin' && document.status !== oldStatus && document.user_id) {
+            const statusMessages = {
+                approved: `Tài liệu "${document.title}" của bạn đã được duyệt và hiển thị công khai.`,
+                rejected: `Tài liệu "${document.title}" của bạn đã bị từ chối.`,
+                pending: `Tài liệu "${document.title}" của bạn đã được chuyển về trạng thái chờ duyệt.`
+            };
+
+            // Enum notifications.type hiện chỉ hỗ trợ 'approved'/'rejected' cho các mốc trạng thái này,
+            // nếu chuyển về 'pending' thì dùng type 'rejected' kèm nội dung phù hợp để không vỡ enum DB.
+            const notificationType = document.status === 'approved' ? 'approved' : 'rejected';
+
+            await Notification.create({
+                user_id: document.user_id,
+                document_id: document.id,
+                type: notificationType,
+                message: statusMessages[document.status] || `Trạng thái tài liệu "${document.title}" của bạn đã được cập nhật thành "${document.status}".`
+            });
+        }
+
         return res.status(200).json({ message: 'Cập nhật tài liệu thành công' });
     } catch (error) {
         console.error("Error updating document:", error);
@@ -311,6 +347,16 @@ const approveDocument = async (req, res, next) => {
         document.status = "approved";
         await document.save();
 
+        // Tạo thông báo cho chủ tài liệu
+        if (document.user_id) {
+            await Notification.create({
+                user_id: document.user_id,
+                document_id: document.id,
+                type: 'approved',
+                message: `Tài liệu "${document.title}" của bạn đã được duyệt và hiển thị công khai.`
+            });
+        }
+
         return res.status(200).json({ message: 'Đã duyệt tài liệu.' });
 
     } catch (error) {
@@ -331,6 +377,16 @@ const rejectDocument = async (req, res, next) => {
 
         document.status = "rejected";
         await document.save();
+
+        // Tạo thông báo cho chủ tài liệu
+        if (document.user_id) {
+            await Notification.create({
+                user_id: document.user_id,
+                document_id: document.id,
+                type: 'rejected',
+                message: `Tài liệu "${document.title}" của bạn đã bị từ chối.`
+            });
+        }
 
         return res.status(200).json({ message: 'Đã từ chối tài liệu.' });
 

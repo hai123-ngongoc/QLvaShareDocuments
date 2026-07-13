@@ -5,6 +5,7 @@ import useAuthModal from '../../hooks/useAuthModal'
 import useScrollDirection from '../../hooks/useScrollDirection'
 import { getInitials } from '../../utils/userDisplay'
 import { API_URL } from '../../services/api'
+import NotificationBell from '../common/NotificationBell'
 
 const THEME_STORAGE_KEY = 'theme'
 
@@ -142,6 +143,7 @@ function Header({ showThemeToggle = true, variant = 'default', isAuthenticated: 
                   + Upload
                 </a>
               )}
+              {!isAdmin && <NotificationBell />}
               {themeToggle}
               <div className="account-menu" ref={accountMenuRef}>
                 <button

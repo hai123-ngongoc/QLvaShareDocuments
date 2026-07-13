@@ -1,5 +1,7 @@
 const Rating = require('../../../model/rating');
 const User = require('../../../model/auth');
+const Document = require('../../../model/documents');
+const Notification = require('../../../model/notification');
 const createError = require('http-errors');
 
 //danh sách đánh giá của 1 document
@@ -62,6 +64,24 @@ const create = async (req, res, next) => {
             rating,
             comment
         });
+
+        // Tạo thông báo cho chủ tài liệu khi có bình luận mới
+        try {
+            const document = await Document.findByPk(document_id);
+            if (document && document.user_id && document.user_id !== user_id) {
+                const commenter = await User.findByPk(user_id, { attributes: ['username'] });
+                const commenterName = commenter ? commenter.username : 'Ai đó';
+                await Notification.create({
+                    user_id: document.user_id,
+                    document_id: document.id,
+                    type: 'commented',
+                    message: `${commenterName} đã bình luận trên tài liệu "${document.title}" của bạn.`
+                });
+            }
+        } catch (notifError) {
+            // Không để lỗi thông báo ảnh hưởng tới response chính
+            console.error('Lỗi tạo thông báo bình luận:', notifError);
+        }
 
         return res.status(201).json(newRating);
     } catch (error) {

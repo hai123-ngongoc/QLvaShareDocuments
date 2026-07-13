@@ -4,6 +4,7 @@ const Rating = require('./rating');
 const Download = require('./downloads');
 const User = require('./auth');
 const Favorite = require('./favorites');
+const Notification = require('./notification');
 
 Document.belongsTo(Course, {
     foreignKey: 'course_id',
@@ -70,11 +71,28 @@ Rating.belongsTo(User, {
     as: 'user'
 });
 
+// ─── Notifications ───────────────────────────────────────────────────
+User.hasMany(Notification, {
+    foreignKey: 'user_id',
+    as: 'notifications'
+});
+
+Notification.belongsTo(User, {
+    foreignKey: 'user_id',
+    as: 'user'
+});
+
+Notification.belongsTo(Document, {
+    foreignKey: 'document_id',
+    as: 'document'
+});
+
 module.exports = {
     Document,
     Course,
     Rating,
     User,
     Download,
-    Favorite
+    Favorite,
+    Notification
 };
