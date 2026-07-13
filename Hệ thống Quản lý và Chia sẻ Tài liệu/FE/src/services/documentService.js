@@ -49,6 +49,27 @@ export function getPreviewUrl(id) {
     return `${API_URL}/v1/documents/${id}/view`
 }
 
+// Giống getPreviewUrl nhưng dùng cho tài liệu CHƯA approved (vd admin xem trước tài liệu
+// đang chờ duyệt). Route /:id/view cho phép xem không cần token với tài liệu đã approved,
+// nhưng với tài liệu pending/rejected thì canViewDocument() ở BE yêu cầu req.user (chủ tài
+// liệu hoặc admin) -> phải tự fetch kèm Authorization header rồi trả về Blob để gán vào
+// <iframe src> qua URL.createObjectURL, vì thẻ <iframe>/<a> không tự gửi header này.
+export async function fetchPreviewBlob(id) {
+    const token = localStorage.getItem('token')
+
+    const res = await fetch(`${API_URL}/v1/documents/${id}/view`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+
+    if (!res.ok) {
+        const contentType = res.headers.get('content-type') || ''
+        const data = contentType.includes('application/json') ? await res.json() : null
+        throw new Error((data && data.message) || `Lỗi ${res.status}`)
+    }
+
+    return res.blob()
+}
+
 // GET /v1/documents/download/:id YÊU CẦU token qua header Authorization.
 // Link/window.open không tự gửi header, nên phải tự fetch kèm token rồi trả Blob để tải.
 export async function downloadDocumentFile(id) {

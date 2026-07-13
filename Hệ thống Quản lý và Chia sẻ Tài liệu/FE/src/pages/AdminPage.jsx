@@ -45,6 +45,7 @@ import {
   adminDeleteAllRatingsApi,
   postAdminLog,
 } from '../services/adminService'
+import { fetchPreviewBlob, downloadDocumentFile } from '../services/documentService'
 
 const DOCUMENTS_PER_PAGE = 6
 const USERS_PER_PAGE = 6
@@ -128,6 +129,9 @@ function AdminPage() {
   const [documentRejectRequest, setDocumentRejectRequest] = useState(null)
   const [documentRejectReason, setDocumentRejectReason] = useState('')
   const [previewDocument, setPreviewDocument] = useState(null)
+  const [previewFileUrl, setPreviewFileUrl] = useState(null)
+  const [previewFileError, setPreviewFileError] = useState('')
+  const [isPreviewFileLoading, setIsPreviewFileLoading] = useState(false)
   const [userEditor, setUserEditor] = useState(null)
   const [userDetail, setUserDetail] = useState(null)
   const [userDeleteRequest, setUserDeleteRequest] = useState(null)
@@ -198,6 +202,40 @@ function AdminPage() {
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
+
+  useEffect(() => {
+    if (!previewDocument || !previewDocument.file_type?.toLowerCase().includes('pdf')) {
+      setPreviewFileUrl(null)
+      setPreviewFileError('')
+      return
+    }
+
+    let objectUrl = null
+    let cancelled = false
+
+    setPreviewFileUrl(null)
+    setPreviewFileError('')
+    setIsPreviewFileLoading(true)
+
+    fetchPreviewBlob(previewDocument.id)
+      .then((blob) => {
+        if (cancelled) return
+        objectUrl = window.URL.createObjectURL(blob)
+        setPreviewFileUrl(objectUrl)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setPreviewFileError(err.message || 'Không thể tải file xem trước.')
+      })
+      .finally(() => {
+        if (!cancelled) setIsPreviewFileLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+      if (objectUrl) window.URL.revokeObjectURL(objectUrl)
+    }
+  }, [previewDocument])
 
   // ── Derived data ──────────────────────────────────────────────
   function getCourseById(courseId) {
@@ -425,6 +463,33 @@ function AdminPage() {
       showToast('Đã duyệt tài liệu.')
     } catch (err) {
       showToast(`Lỗi: ${err.message}`)
+    }
+  }
+
+  // Tải file tài liệu đang xem trước. KHÔNG dùng thẳng <a href={file_url} download>:
+  // file_url chỉ là đường dẫn tương đối trên server BE (vd /uploads/xxx.pdf) nên khi mở
+  // trên origin của FE sẽ ra 404, và route download thật (/v1/documents/download/:id) yêu cầu
+  // token qua header Authorization nên phải fetch thủ công rồi tạo Blob để tải, giống trang
+  // chi tiết tài liệu (DocumentDetailPage) đang làm.
+  const downloadPreviewFile = async (document) => {
+    if (!document) return
+    setProcessingAction(`download-document-${document.id}`)
+    try {
+      const blob = await downloadDocumentFile(document.id)
+      const objectUrl = window.URL.createObjectURL(blob)
+      const fileName = getFileNameFromUrl(document.file_url) || `tai-lieu-${document.id}`
+
+      const link = window.document.createElement('a')
+      link.href = objectUrl
+      link.download = fileName
+      window.document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(objectUrl)
+    } catch (err) {
+      showToast(`Lỗi tải file: ${err.message}`)
+    } finally {
+      setProcessingAction('')
     }
   }
 
@@ -1493,11 +1558,30 @@ function AdminPage() {
             </div>
 
             <div className="admin-preview-dialog__body">
-              <div className="admin-preview-dialog__fallback">
-                <FileText size={44} strokeWidth={1.8} />
-                <strong>Chưa có dữ liệu</strong>
-                <p>File xem trước sẽ hiển thị khi backend cung cấp file_url thật.</p>
-              </div>
+              {!previewDocument.file_type?.toLowerCase().includes('pdf') ? (
+                <div className="admin-preview-dialog__fallback">
+                  <FileText size={44} strokeWidth={1.8} />
+                  <strong>Không hỗ trợ xem trực tiếp</strong>
+                  <p>Chỉ xem trước được file PDF. Vui lòng tải file để xem định dạng này.</p>
+                </div>
+              ) : isPreviewFileLoading ? (
+                <div className="admin-preview-dialog__fallback">
+                  <FileText size={44} strokeWidth={1.8} />
+                  <strong>Đang tải file xem trước…</strong>
+                </div>
+              ) : previewFileError ? (
+                <div className="admin-preview-dialog__fallback">
+                  <FileText size={44} strokeWidth={1.8} />
+                  <strong>Không tải được file xem trước</strong>
+                  <p>{previewFileError}</p>
+                </div>
+              ) : previewFileUrl ? (
+                <iframe
+                  className="admin-preview-dialog__frame"
+                  title={`Xem trước ${previewDocument.title}`}
+                  src={previewFileUrl}
+                />
+              ) : null}
             </div>
 
             <div className="admin-preview-dialog__description">
@@ -1506,14 +1590,15 @@ function AdminPage() {
             </div>
 
             <div className="admin-preview-dialog__actions">
-              <a
+              <button
                 className="button button--outline"
-                href={previewDocument.file_url}
-                download
+                type="button"
+                disabled={processingAction === `download-document-${previewDocument.id}`}
+                onClick={() => downloadPreviewFile(previewDocument)}
               >
                 <Download size={16} strokeWidth={2} />
                 Tải file
-              </a>
+              </button>
               <button
                 className="button button--outline"
                 type="button"
