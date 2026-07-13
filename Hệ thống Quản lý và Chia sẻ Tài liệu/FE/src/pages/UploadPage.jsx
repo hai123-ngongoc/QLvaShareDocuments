@@ -140,6 +140,11 @@ function UploadPage() {
     setTags([])
   }
 
+  function handleCancel() {
+    resetForm()
+    window.location.assign('/')
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
     setErrorMessage('')
@@ -355,7 +360,7 @@ function UploadPage() {
             <button
               className="button upload-page__secondary"
               type="button"
-              onClick={resetForm}
+              onClick={handleCancel}
               disabled={isSubmitting}
             >
               Hủy

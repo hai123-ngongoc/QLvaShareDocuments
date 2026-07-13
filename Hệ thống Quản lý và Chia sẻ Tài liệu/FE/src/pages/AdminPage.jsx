@@ -7,6 +7,7 @@ import {
   Eye,
   EyeOff,
   FileText,
+  GraduationCap,
   Info,
   KeyRound,
   LayoutDashboard,
@@ -43,6 +44,9 @@ import {
   adminDeleteUserApi,
   adminDeleteRatingApi,
   adminDeleteAllRatingsApi,
+  adminCreateCourseApi,
+  adminUpdateCourseApi,
+  adminDeleteCourseApi,
   postAdminLog,
 } from '../services/adminService'
 import { fetchPreviewBlob, downloadDocumentFile } from '../services/documentService'
@@ -50,6 +54,7 @@ import { fetchPreviewBlob, downloadDocumentFile } from '../services/documentServ
 const DOCUMENTS_PER_PAGE = 6
 const USERS_PER_PAGE = 6
 const RATINGS_PER_PAGE = 6
+const COURSES_PER_PAGE = 6
 
 const statusOptions = [
   { value: 'all', label: 'Tất cả trạng thái' },
@@ -120,6 +125,10 @@ function AdminPage() {
   const [userPage, setUserPage] = useState(0)
   const [ratingSearch, setRatingSearch] = useState('')
   const [ratingPage, setRatingPage] = useState(0)
+  const [courseSearch, setCourseSearch] = useState('')
+  const [coursePage, setCoursePage] = useState(0)
+  const [courseEditor, setCourseEditor] = useState(null)
+  const [courseDeleteRequest, setCourseDeleteRequest] = useState(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [documentDeleteReason, setDocumentDeleteReason] = useState('')
   const [pendingRoleChange, setPendingRoleChange] = useState(null)
@@ -342,6 +351,32 @@ function AdminPage() {
   const ratingPageCount = Math.max(1, Math.ceil(filteredRatings.length / RATINGS_PER_PAGE))
   const activeRatingPage = Math.min(ratingPage, ratingPageCount - 1)
   const paginatedRatings = filteredRatings.slice(activeRatingPage * RATINGS_PER_PAGE, activeRatingPage * RATINGS_PER_PAGE + RATINGS_PER_PAGE)
+
+  // Số tài liệu đang chờ duyệt/đã duyệt theo từng học phần — dùng để chặn xoá học phần ở FE
+  // trước khi gọi API (server vẫn là nơi kiểm tra thật sự).
+  const enrichedCourses = useMemo(() => {
+    return courses.map((course) => {
+      const courseDocuments = enrichedDocuments.filter((d) => d.course_id === course.id)
+      const activeDocumentsCount = courseDocuments.filter(
+        (d) => d.status === 'approved' || d.status === 'pending'
+      ).length
+      return { ...course, documentsCount: courseDocuments.length, activeDocumentsCount }
+    })
+  }, [courses, enrichedDocuments])
+
+  const filteredCourses = useMemo(() => {
+    const s = courseSearch.trim().toLowerCase()
+    return enrichedCourses.filter((c) =>
+      `${c.course_code} ${c.course_name} ${c.faculty ?? ''}`.toLowerCase().includes(s)
+    )
+  }, [enrichedCourses, courseSearch])
+
+  const coursePageCount = Math.max(1, Math.ceil(filteredCourses.length / COURSES_PER_PAGE))
+  const activeCoursePage = Math.min(coursePage, coursePageCount - 1)
+  const paginatedCourses = filteredCourses.slice(
+    activeCoursePage * COURSES_PER_PAGE,
+    activeCoursePage * COURSES_PER_PAGE + COURSES_PER_PAGE,
+  )
 
   const currentAdminId = user?.id
 
@@ -729,6 +764,103 @@ function AdminPage() {
     }, 'Đã tạo mật khẩu tạm thời.')
   }
 
+  // ── Course actions ────────────────────────────────────────────
+  // Thêm học phần mới: học phần vừa tạo luôn chưa có tài liệu nào gắn vào.
+  const openCreateCourseForm = () => {
+    setCourseEditor({
+      mode: 'create',
+      values: { course_code: '', course_name: '', faculty: '', description: '' },
+    })
+  }
+
+  // Sửa học phần: chỉ hiển thị ID (không sửa được) và tên học phần (sửa được).
+  const openEditCourseForm = (course) => {
+    setCourseEditor({
+      mode: 'edit',
+      id: course.id,
+      original: course,
+      values: { course_name: course.course_name },
+    })
+  }
+
+  // Nhảy sang mục "Tài liệu" ở sidebar, đồng thời chọn sẵn học phần này trong dropdown lọc.
+  const viewCourseDocuments = (course) => {
+    setCourseFilter(String(course.id))
+    setDocumentPage(0)
+    setActiveView('documents')
+  }
+
+  const saveCourse = (event) => {
+    event.preventDefault()
+    if (!courseEditor) return
+
+    const values = courseEditor.values
+
+    if (courseEditor.mode === 'create') {
+      if (!values.course_code.trim() || !values.course_name.trim()) {
+        showToast('Vui lòng nhập đầy đủ mã và tên học phần.')
+        return
+      }
+      runAdminAction('create-course', async () => {
+        const created = await adminCreateCourseApi({
+          course_code: values.course_code.trim(),
+          course_name: values.course_name.trim(),
+          faculty: values.faculty.trim() || null,
+          description: values.description.trim() || null,
+        })
+        await writeAdminLog({
+          targetUserId: null, action: 'create_course',
+          before: null, after: { course_code: created.course_code, course_name: created.course_name },
+          reason: 'Tạo học phần mới từ trang admin',
+        })
+        setCourseEditor(null)
+        loadData()
+      }, 'Đã tạo học phần.')
+    } else {
+      if (!values.course_name.trim()) {
+        showToast('Vui lòng nhập tên học phần.')
+        return
+      }
+      runAdminAction('edit-course', async () => {
+        await adminUpdateCourseApi(courseEditor.id, { course_name: values.course_name.trim() })
+        await writeAdminLog({
+          targetUserId: null, action: 'update_course',
+          before: { course_name: courseEditor.original.course_name },
+          after: { course_name: values.course_name.trim() },
+          reason: 'Cập nhật tên học phần từ admin',
+        })
+        setCourseEditor(null)
+        loadData()
+      }, 'Đã cập nhật học phần.')
+    }
+  }
+
+  const openDeleteCourseConfirm = (course) => {
+    setCourseDeleteRequest(course)
+  }
+
+  // Chỉ xoá được nếu học phần không còn tài liệu đang chờ duyệt/đã duyệt.
+  // FE chặn trước để tránh gọi API thừa, nhưng quyết định cuối cùng vẫn ở BE.
+  const confirmDeleteCourse = () => {
+    if (!courseDeleteRequest) return
+
+    if (courseDeleteRequest.activeDocumentsCount > 0) {
+      showToast('Không thể xoá: học phần vẫn còn tài liệu chờ duyệt hoặc đã duyệt.')
+      return
+    }
+
+    runAdminAction('delete-course', async () => {
+      await adminDeleteCourseApi(courseDeleteRequest.id)
+      await writeAdminLog({
+        targetUserId: null, action: 'delete_course',
+        before: { course_code: courseDeleteRequest.course_code, course_name: courseDeleteRequest.course_name },
+        after: null, reason: 'Xoá học phần không còn tài liệu hiệu lực',
+      })
+      setCourseDeleteRequest(null)
+      loadData()
+    }, 'Đã xoá học phần.')
+  }
+
   // ── Rating actions ────────────────────────────────────────────
   const openDeleteRatingConfirm = (rating) => {
     setRatingDeleteRequest(rating)
@@ -776,6 +908,7 @@ function AdminPage() {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'pending', label: 'Chờ duyệt', icon: CheckCircle },
     { id: 'documents', label: 'Tài liệu', icon: FileText },
+    { id: 'courses', label: 'Học phần', icon: GraduationCap },
     { id: 'users', label: 'Người dùng', icon: Users },
     { id: 'ratings', label: 'Đánh giá', icon: MessageSquare },
   ]
@@ -851,6 +984,7 @@ function AdminPage() {
                 {activeView === 'dashboard' && 'Dashboard tổng quan'}
                 {activeView === 'pending' && 'Tài liệu chờ duyệt'}
                 {activeView === 'documents' && 'Quản lý tài liệu'}
+                {activeView === 'courses' && 'Quản lý học phần'}
                 {activeView === 'users' && 'Quản lý người dùng'}
                 {activeView === 'ratings' && 'Quản lý đánh giá'}
               </h1>
@@ -1241,6 +1375,130 @@ function AdminPage() {
                   onClick={() =>
                     setDocumentPage((page) => Math.min(documentPageCount - 1, page + 1))
                   }
+                >
+                  <ChevronRight size={16} strokeWidth={2} />
+                </button>
+              </div>
+            </section>
+          )}
+
+          {activeView === 'courses' && (
+            <section className="admin-panel admin-panel--table" aria-labelledby="admin-courses-title">
+              <div className="admin-panel__heading admin-panel__heading--split">
+                <div>
+                  <h2 id="admin-courses-title">Danh sách học phần</h2>
+                  <p>Thêm, sửa tên, và xoá học phần. Học phần mới sẽ chưa có tài liệu nào.</p>
+                </div>
+                <div className="admin-heading-actions">
+                  <span>{filteredCourses.length.toLocaleString()} kết quả</span>
+                  <button className="button button--primary" type="button" onClick={openCreateCourseForm}>
+                    <Plus size={16} strokeWidth={2} />
+                    Thêm học phần
+                  </button>
+                </div>
+              </div>
+
+              <div className="admin-filters admin-filters--single">
+                <label className="admin-search">
+                  <Search size={16} strokeWidth={2} aria-hidden="true" />
+                  <input
+                    type="search"
+                    placeholder="Tìm mã, tên học phần hoặc khoa..."
+                    value={courseSearch}
+                    onChange={(event) => {
+                      setCourseSearch(event.target.value)
+                      setCoursePage(0)
+                    }}
+                  />
+                </label>
+              </div>
+
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Mã học phần</th>
+                      <th>Tên học phần</th>
+                      <th>Khoa/Ngành</th>
+                      <th>Số tài liệu</th>
+                      <th>Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedCourses.map((course) => (
+                      <tr key={course.id}>
+                        <td>#{course.id}</td>
+                        <td>{course.course_code}</td>
+                        <td>
+                          <strong>{course.course_name}</strong>
+                        </td>
+                        <td>{course.faculty || '—'}</td>
+                        <td>
+                          <span className="status-badge status-badge--pending">
+                            {course.documentsCount.toLocaleString()}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="admin-row-actions admin-row-actions--courses">
+                            <button type="button" onClick={() => viewCourseDocuments(course)}>
+                              <Eye size={15} strokeWidth={2} />
+                              Xem
+                            </button>
+                            <ActionMenu
+                              ariaLabel={`Mở thao tác cho ${course.course_name}`}
+                              menuWidth={160}
+                              menuHeight={104}
+                            >
+                              <button type="button" onClick={() => openEditCourseForm(course)}>
+                                <Pencil size={15} strokeWidth={2} />
+                                Sửa
+                              </button>
+                              <button
+                                className="is-danger"
+                                type="button"
+                                disabled={course.activeDocumentsCount > 0}
+                                title={
+                                  course.activeDocumentsCount > 0
+                                    ? 'Không thể xoá vì còn tài liệu chờ duyệt/đã duyệt'
+                                    : undefined
+                                }
+                                onClick={() => openDeleteCourseConfirm(course)}
+                              >
+                                <Trash2 size={15} strokeWidth={2} />
+                                Xoá
+                              </button>
+                            </ActionMenu>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {paginatedCourses.length === 0 && (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: '2rem 0' }}>
+                          Không tìm thấy học phần nào.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="admin-pagination">
+                <button
+                  type="button"
+                  disabled={activeCoursePage === 0}
+                  onClick={() => setCoursePage((page) => Math.max(0, page - 1))}
+                >
+                  <ChevronLeft size={16} strokeWidth={2} />
+                </button>
+                <span>
+                  Trang {activeCoursePage + 1}/{coursePageCount}
+                </span>
+                <button
+                  type="button"
+                  disabled={activeCoursePage >= coursePageCount - 1}
+                  onClick={() => setCoursePage((page) => Math.min(coursePageCount - 1, page + 1))}
                 >
                   <ChevronRight size={16} strokeWidth={2} />
                 </button>
@@ -1873,6 +2131,170 @@ function AdminPage() {
                 </button>
               </div>
             </form>
+          </section>
+        </div>
+      )}
+
+      {courseEditor && (
+        <div className="admin-confirm" role="presentation">
+          <section
+            className="admin-form-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-course-form-title"
+          >
+            <button
+              className="admin-confirm__close"
+              type="button"
+              aria-label="Đóng"
+              onClick={() => setCourseEditor(null)}
+            >
+              <X size={18} strokeWidth={2} />
+            </button>
+            <h2 id="admin-course-form-title">
+              {courseEditor.mode === 'create' ? 'Thêm học phần' : 'Sửa học phần'}
+            </h2>
+            {courseEditor.mode === 'create' ? (
+              <p>Học phần mới sẽ được tạo và chưa có tài liệu nào gắn vào.</p>
+            ) : (
+              <p>Chỉ có thể đổi tên học phần. ID học phần là cố định, không thể chỉnh sửa.</p>
+            )}
+
+            <form className="admin-form" onSubmit={saveCourse}>
+              {courseEditor.mode === 'edit' && (
+                <label>
+                  ID học phần
+                  <input value={courseEditor.id} disabled readOnly />
+                </label>
+              )}
+
+              {courseEditor.mode === 'create' && (
+                <label>
+                  Mã học phần
+                  <input
+                    required
+                    placeholder="Ví dụ: WEB101"
+                    value={courseEditor.values.course_code}
+                    onChange={(event) =>
+                      setCourseEditor((current) => ({
+                        ...current,
+                        values: { ...current.values, course_code: event.target.value },
+                      }))
+                    }
+                  />
+                </label>
+              )}
+
+              <label>
+                Tên học phần
+                <input
+                  required
+                  autoFocus={courseEditor.mode === 'edit'}
+                  value={courseEditor.values.course_name}
+                  onChange={(event) =>
+                    setCourseEditor((current) => ({
+                      ...current,
+                      values: { ...current.values, course_name: event.target.value },
+                    }))
+                  }
+                />
+              </label>
+
+              {courseEditor.mode === 'create' && (
+                <>
+                  <label>
+                    Khoa/Ngành phụ trách
+                    <input
+                      value={courseEditor.values.faculty}
+                      onChange={(event) =>
+                        setCourseEditor((current) => ({
+                          ...current,
+                          values: { ...current.values, faculty: event.target.value },
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label>
+                    Mô tả
+                    <textarea
+                      value={courseEditor.values.description}
+                      onChange={(event) =>
+                        setCourseEditor((current) => ({
+                          ...current,
+                          values: { ...current.values, description: event.target.value },
+                        }))
+                      }
+                    />
+                  </label>
+                </>
+              )}
+
+              <div className="admin-form__actions">
+                <button className="button button--outline" type="button" onClick={() => setCourseEditor(null)}>
+                  Huỷ
+                </button>
+                <button
+                  className="button button--primary"
+                  type="submit"
+                  disabled={processingAction === 'create-course' || processingAction === 'edit-course'}
+                >
+                  Lưu học phần
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {courseDeleteRequest && (
+        <div className="admin-confirm" role="presentation">
+          <section
+            className="admin-danger-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-delete-course-title"
+          >
+            <button
+              className="admin-confirm__close"
+              type="button"
+              aria-label="Đóng"
+              onClick={() => setCourseDeleteRequest(null)}
+            >
+              <X size={18} strokeWidth={2} />
+            </button>
+            <h2 id="admin-delete-course-title">Xoá học phần?</h2>
+            {courseDeleteRequest.activeDocumentsCount > 0 ? (
+              <p>
+                Không thể xoá học phần <strong>{courseDeleteRequest.course_name}</strong> vì vẫn còn{' '}
+                {courseDeleteRequest.activeDocumentsCount} tài liệu đang chờ duyệt hoặc đã được duyệt.
+                Vui lòng chuyển/xoá các tài liệu đó trước.
+              </p>
+            ) : (
+              <p>
+                Bạn có chắc muốn xoá học phần <strong>{courseDeleteRequest.course_name}</strong>? Thao
+                tác này không thể hoàn tác.
+              </p>
+            )}
+            <div>
+              <button
+                className="button button--outline"
+                type="button"
+                onClick={() => setCourseDeleteRequest(null)}
+              >
+                Huỷ
+              </button>
+              <button
+                className="button button--primary"
+                type="button"
+                disabled={
+                  courseDeleteRequest.activeDocumentsCount > 0 || processingAction === 'delete-course'
+                }
+                onClick={confirmDeleteCourse}
+              >
+                Xoá học phần
+              </button>
+            </div>
           </section>
         </div>
       )}

@@ -77,6 +77,18 @@ export async function fetchAllCourses() {
     return data.items || data || []
 }
 
+export function adminCreateCourseApi(payload) {
+    return apiFetch('/v1/courses', { method: 'POST', body: payload })
+}
+
+export function adminUpdateCourseApi(id, payload) {
+    return apiFetch(`/v1/courses/${id}`, { method: 'PUT', body: payload })
+}
+
+export function adminDeleteCourseApi(id) {
+    return apiFetch(`/v1/courses/${id}`, { method: 'DELETE' })
+}
+
 // ─── Admin Logs ──────────────────────────────────────────────────────
 export function fetchAdminLogs() {
     return apiFetch('/v1/auth/admin/logs')
