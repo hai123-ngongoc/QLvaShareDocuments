@@ -5,6 +5,32 @@ export async function getDocuments() {
     return data.items
 }
 
+export async function getPublicNewDocuments(page, pageSize = 8) {
+    try {
+        return await apiFetch(`/v1/documents/public/new?page=${page}&pageSize=${pageSize}`)
+    } catch {
+        // Tương thích với backend đang chạy phiên bản cũ chưa có route /public/new.
+        // Admin có thể nhận cả pending/rejected từ route chung nên phải lọc approved tại đây.
+        const data = await apiFetch('/v1/documents')
+        const publicDocuments = (data.items || [])
+            .filter((document) => document.status === 'approved')
+            .sort((first, second) => {
+                const dateDifference = new Date(second.created_at) - new Date(first.created_at)
+                return dateDifference || second.id - first.id
+            })
+        const totalItems = publicDocuments.length
+        const offset = (page - 1) * pageSize
+
+        return {
+            items: publicDocuments.slice(offset, offset + pageSize),
+            totalItems,
+            page,
+            pageSize,
+            totalPages: Math.ceil(totalItems / pageSize),
+        }
+    }
+}
+
 export function searchDocuments(keyword) {
     return apiFetch(`/v1/documents/search?keyword=${encodeURIComponent(keyword)}`)
 }

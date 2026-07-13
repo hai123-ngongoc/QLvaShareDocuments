@@ -16,15 +16,26 @@ function formatRating(value) {
 
 function SuggestedDocuments({
   documents,
+  currentPage = 1,
   headingId = 'suggested-title',
+  onPageChange,
+  pageSize = 8,
   showFilters = true,
   showFooterControls = true,
+  totalItems = 0,
   getDocumentHref,
   variant = 'default',
   title = '✦ Gợi ý cho bạn',
 }) {
   const [sectionRef, isVisible] = useRevealOnce()
   const isCompact = variant === 'compact'
+  const totalPages = Math.ceil(totalItems / pageSize)
+
+  const handlePageChange = (page) => {
+    if (page === currentPage || page < 1 || page > totalPages) return
+    onPageChange?.(page)
+    sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   return (
     <section
@@ -126,35 +137,29 @@ function SuggestedDocuments({
         })}
       </div>
 
-      {showFooterControls && (
-        <>
-          <div className="load-more">
-            <button className="button button--outline" type="button">
-              Xem thêm
+      {showFooterControls && totalItems > pageSize && (
+        <nav className="pagination" aria-label="Phân trang tài liệu">
+          {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+            <button
+              className={`pagination__item ${page === currentPage ? 'pagination__item--active' : ''}`}
+              type="button"
+              aria-current={page === currentPage ? 'page' : undefined}
+              onClick={() => handlePageChange(page)}
+              key={page}
+            >
+              {page}
             </button>
-          </div>
-
-          <nav className="pagination" aria-label="Phân trang tài liệu">
-            <button className="pagination__item pagination__item--active" type="button">
-              1
-            </button>
-            <button className="pagination__item" type="button">
-              2
-            </button>
-            <button className="pagination__item" type="button">
-              3
-            </button>
-            <button className="pagination__item" type="button">
-              4
-            </button>
-            <button className="pagination__item" type="button">
-              5
-            </button>
-            <button className="pagination__item" type="button" aria-label="Trang tiếp theo">
-              ›
-            </button>
-          </nav>
-        </>
+          ))}
+          <button
+            className="pagination__item"
+            type="button"
+            aria-label="Trang tiếp theo"
+            disabled={currentPage >= totalPages}
+            onClick={() => handlePageChange(currentPage + 1)}
+          >
+            ›
+          </button>
+        </nav>
       )}
     </section>
   )

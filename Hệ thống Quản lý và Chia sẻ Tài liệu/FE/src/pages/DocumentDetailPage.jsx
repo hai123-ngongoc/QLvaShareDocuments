@@ -18,6 +18,7 @@ import { getCourse } from '../services/courseService'
 import { getRatingsForDocument, getAverageRating, addRating } from '../services/ratingService'
 import { checkFavorite, addFavorite, removeFavorite } from '../services/favoriteService'
 import { API_URL } from '../services/api'
+import { getInitials } from '../utils/userDisplay'
 
 const statusLabels = {
   approved: 'Đã duyệt',
@@ -366,7 +367,7 @@ function DocumentDetailPage() {
                   {document.uploader?.avatar ? (
                     <img src={`${API_URL}${document.uploader.avatar}`} alt="Avatar" />
                   ) : (
-                    (document.uploader?.username ?? '?').charAt(0).toUpperCase()
+                    getInitials(document.uploader?.username)
                   )}
                 </span>
                 <strong>{document.uploader?.username ?? `Người dùng #${document.user_id}`}</strong>
@@ -440,7 +441,7 @@ function DocumentDetailPage() {
                   {review.user?.avatar ? (
                     <img src={`${API_URL}${review.user.avatar}`} alt="Avatar" />
                   ) : (
-                    (review.user?.username ?? '?').charAt(0).toUpperCase()
+                    getInitials(review.user?.username)
                   )}
                 </span>
                 <div>

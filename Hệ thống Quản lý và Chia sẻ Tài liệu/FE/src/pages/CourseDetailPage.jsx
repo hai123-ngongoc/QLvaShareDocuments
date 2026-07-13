@@ -17,6 +17,7 @@ import useAuthModal from '../hooks/useAuthModal'
 import { getCourse } from '../services/courseService'
 import { getDocuments } from '../services/documentService'
 import { getAverageRating } from '../services/ratingService'
+import { getCourseBadgeLabel } from '../utils/courseDisplay'
 
 const documentFilters = [
   { id: 'trending', label: 'Thịnh hành' },
@@ -179,7 +180,9 @@ function CourseDetailPage() {
           </span>
 
           <div className="course-detail-hero__content">
-            <span className="course-detail-hero__code">{course.course_code}</span>
+            <span className="course-detail-hero__code">
+              {getCourseBadgeLabel(course, course.course_name)}
+            </span>
             <h1 id="course-detail-title">{course.course_name}</h1>
 
             <div className="course-detail-hero__meta">

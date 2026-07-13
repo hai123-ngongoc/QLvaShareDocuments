@@ -36,6 +36,41 @@ const list = async (req, res, next) => {
     }
 };
 
+// Danh sách tài liệu công khai mới trên trang chủ.
+// Luôn chỉ lấy tài liệu đã duyệt, kể cả khi người gọi là admin.
+const listPublicNew = async (req, res, next) => {
+    try {
+        const requestedPage = Number.parseInt(req.query.page, 10);
+        const requestedPageSize = Number.parseInt(req.query.pageSize, 10);
+        const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+        const pageSize = Number.isInteger(requestedPageSize) && requestedPageSize > 0
+            ? Math.min(requestedPageSize, 100)
+            : 8;
+
+        const { count, rows } = await Document.findAndCountAll({
+            where: { status: 'approved' },
+            include: [
+                { model: Course, as: 'course', attributes: ['id', 'course_name'] },
+                { model: User, as: 'uploader', attributes: { exclude: ['password'] } },
+            ],
+            order: [['created_at', 'DESC'], ['id', 'DESC']],
+            limit: pageSize,
+            offset: (page - 1) * pageSize,
+            distinct: true,
+        });
+
+        return res.status(200).json({
+            ...viewList(rows),
+            totalItems: count,
+            page,
+            pageSize,
+            totalPages: Math.ceil(count / pageSize),
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 //chi tiết tài liệu
 const get = async (req, res, next) => {
     try {
@@ -464,6 +499,7 @@ const adminCreateDocument = async (req, res, next) => {
 
 module.exports = {
     list,
+    listPublicNew,
     get,
     create,
     remove,

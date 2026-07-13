@@ -7,6 +7,8 @@ import ProfilePage from './pages/ProfilePage'
 import UploadPage from './pages/UploadPage'
 import UploadSuccessPage from './pages/UploadSuccessPage'
 import AdminPage from './pages/AdminPage'
+import FooterInfoPage from './pages/FooterInfoPage'
+import AIChatWidget from './components/ai-chat/AIChatWidget'
 import { AuthModalProvider } from './context/AuthModalContext'
 import './App.css'
 
@@ -49,6 +51,10 @@ function RoutedPage({ pathname }) {
     return <UploadSuccessPage />
   }
 
+  if (['/about', '/team', '/project', '/faq', '/contact', '/terms'].includes(routedPathname)) {
+    return <FooterInfoPage pathname={routedPathname} />
+  }
+
   return <HomePage />
 }
 
@@ -62,6 +68,7 @@ function App() {
       initialMode={pathname === '/register' ? 'register' : 'login'}
     >
       <RoutedPage pathname={pathname} />
+      <AIChatWidget />
     </AuthModalProvider>
   )
 }

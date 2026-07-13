@@ -8,19 +8,40 @@ import UploadCallout from '../components/home/UploadCallout'
 import anhnenbenphai from '../assets/anhnenbenphai.png'
 import anhnenbentrai from '../assets/anhnenbentrai.png'
 import { useEffect, useState } from 'react'
-import { getDocuments } from '../services/documentService'
+import { getPublicNewDocuments } from '../services/documentService'
 import { getCourses } from '../services/courseService'
 import { getStats } from '../services/statsService'
 
+const DOCUMENTS_PER_PAGE = 8
+
 function HomePage() {
   const [documents, setDocuments] = useState([])
+  const [documentPage, setDocumentPage] = useState(1)
+  const [totalDocuments, setTotalDocuments] = useState(0)
   const [courses, setCourses] = useState([])
   const [stats, setStats] = useState({ documents: 0, courses: 0, users: 0 })
+
   useEffect(() => {
-    getDocuments().then(setDocuments).catch(console.error)
     getCourses().then(setCourses).catch(console.error)
     getStats().then(setStats).catch(console.error)
   }, [])
+
+  useEffect(() => {
+    let isCurrentRequest = true
+
+    getPublicNewDocuments(documentPage, DOCUMENTS_PER_PAGE)
+      .then((data) => {
+        if (!isCurrentRequest) return
+        setDocuments(data.items || [])
+        setTotalDocuments(Number(data.totalItems) || 0)
+      })
+      .catch(console.error)
+
+    return () => {
+      isCurrentRequest = false
+    }
+  }, [documentPage])
+
   return (
     <>
       <Header />
@@ -56,6 +77,10 @@ function HomePage() {
         <SuggestedDocuments
           title="Tài liệu công khai mới"
           documents={documents}
+          currentPage={documentPage}
+          pageSize={DOCUMENTS_PER_PAGE}
+          totalItems={totalDocuments}
+          onPageChange={setDocumentPage}
           getDocumentHref={(document) => `/documents/${document.id}`}
         />
 

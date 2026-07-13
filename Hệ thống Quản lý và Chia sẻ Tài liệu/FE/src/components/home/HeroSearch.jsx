@@ -1,6 +1,6 @@
 function HeroSearch() {
   return (
-    <section className="hero-search" aria-labelledby="hero-title">
+    <section className="hero-search" id="search-documents" aria-labelledby="hero-title">
       <h1 id="hero-title">Tìm tài liệu học tập</h1>
       <p>Hơn 12,000 tài liệu được tóm tắt và gợi ý tự động</p>
 

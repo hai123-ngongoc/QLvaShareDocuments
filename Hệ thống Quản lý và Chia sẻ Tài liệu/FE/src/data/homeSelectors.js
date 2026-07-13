@@ -7,6 +7,8 @@ import {
   ratings,
   users,
 } from './mockDatabase'
+import { getInitials } from '../utils/userDisplay'
+import { getCourseBadgeLabel } from '../utils/courseDisplay'
 
 // TODO: cần backend bổ sung metadata màu/icon nếu muốn quản trị từ DB.
 // courses table has no color/icon fields, so FE owns this stable course_code mapping.
@@ -128,15 +130,6 @@ function getFavoriteState(document) {
   return Boolean(document.is_favorite)
 }
 
-function getInitials(username) {
-  return username
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('')
-}
-
 function mapDocumentCard(document) {
   const course = getCourseById(document.course_id)
   const owner = getUserById(document.user_id)
@@ -185,7 +178,7 @@ export function getPopularCourses() {
     return {
       id: course.id,
       name: course.course_name,
-      shortName: courseIconMap[course.course_code] ?? course.course_code.slice(0, 2),
+      shortName: getCourseBadgeLabel(course, course.course_name),
       documents: courseDocuments.length,
       views: viewTotal,
       color: courseColorMap[course.course_code] ?? 'blue',

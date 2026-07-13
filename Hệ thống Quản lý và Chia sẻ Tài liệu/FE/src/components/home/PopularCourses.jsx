@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Eye } from 'lucide-react'
 import useRevealOnce from '../../hooks/useRevealOnce'
+import { getCourseBadgeLabel } from '../../utils/courseDisplay'
 
 const COURSES_PER_PAGE = 4
 const slideTransition = {
@@ -104,7 +105,7 @@ function PopularCourses({ courses, totalCourses }) {
                 className={`course-card__icon course-card__icon--${course.color || ICON_COLORS[course.id % ICON_COLORS.length]
                   }`}
               >
-                {course.shortName || course.course_code || course.course_name?.slice(0, 2)}
+                {getCourseBadgeLabel(course, course.name || course.course_name)}
               </span>
               <div>
                 <h3>{course.name || course.course_name}</h3>

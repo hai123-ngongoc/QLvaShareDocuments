@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { list, get, create, remove, update, download, search, viewFile, getAverageRating, getPendingDocuments, approveDocument, rejectDocument, adminCreateDocument } = require('./controller');
+const { list, listPublicNew, get, create, remove, update, download, search, viewFile, getAverageRating, getPendingDocuments, approveDocument, rejectDocument, adminCreateDocument } = require('./controller');
 const upload = require('../middleware/upload');
 const verifyToken = require('../middleware/verifyToken');
 const optionalAuth = require('../middleware/optionalAuth');
@@ -9,6 +9,9 @@ const route = new Router();
 
 //lấy danh sách tài liệu (công khai, nhưng optionalAuth để chủ tài liệu thấy thêm bài pending/rejected của chính mình)
 route.get('/', optionalAuth, list,);
+
+// Tài liệu công khai mới trên trang chủ (phân trang ở server)
+route.get('/public/new', listPublicNew);
 
 //điểm đánh giá
 route.get("/:id/average-rating", getAverageRating);

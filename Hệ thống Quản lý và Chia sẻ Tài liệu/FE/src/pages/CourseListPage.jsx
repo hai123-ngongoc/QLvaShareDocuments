@@ -4,6 +4,7 @@ import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
 import { getCourses } from '../services/courseService'
 import { getDocuments } from '../services/documentService'
+import { getCourseBadgeLabel } from '../utils/courseDisplay'
 
 const COURSES_PER_PAGE = 9
 const sortOptions = [
@@ -16,8 +17,7 @@ const sortOptions = [
 const colorPalette = ['blue', 'purple', 'green', 'amber', 'pink', 'teal', 'red', 'indigo']
 
 function getCourseShortName(course) {
-  if (course.course_code) return course.course_code.slice(0, 4).toUpperCase()
-  return (course.course_name || '?').slice(0, 2).toUpperCase()
+  return getCourseBadgeLabel(course, course.course_name)
 }
 
 function getCourseColor(course) {
