@@ -8,6 +8,7 @@ router.use("/favorites", require("./favorites/route"));
 router.use('/courses', require('./courses/route'));
 router.use('/stats', require('./stats/route'));
 router.use('/notifications', require('./notifications/route'));
+router.use('/chatbot', require('./chatbot/route'));
 
 router.use('/auth', require('./auth/route'));
 

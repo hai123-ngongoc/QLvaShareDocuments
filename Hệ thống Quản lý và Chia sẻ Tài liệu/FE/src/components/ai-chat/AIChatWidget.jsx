@@ -4,21 +4,57 @@ import { Bot, Sparkles, X } from 'lucide-react'
 import ChatHeader from './ChatHeader'
 import ChatInput from './ChatInput'
 import MessageList from './MessageList'
-import { CHAT_SUGGESTIONS, createMockResponse } from './mockData'
+import { CHAT_SUGGESTIONS } from './mockData'
+import { sendChatMessage } from '../../services/chatbotService'
 import './AIChatWidget.css'
 
+// Dự án hiện điều hướng bằng thẻ <a href> (không dùng React Router) nên mỗi lần
+// chuyển trang là 1 lần reload toàn bộ trang -> toàn bộ state React (kể cả chat)
+// bị mất. Lưu tạm vào sessionStorage để khôi phục lại sau khi trang reload,
+// tự xóa khi đóng tab/trình duyệt (đúng nghĩa "lịch sử trong phiên làm việc").
+const SESSION_STORAGE_KEY = 'ai-chat-session-v1'
+
+function loadSession() {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(SESSION_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function saveSession(data) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data))
+  } catch {
+    // sessionStorage có thể bị chặn (chế độ ẩn danh, hết dung lượng...) -> bỏ qua, không chặn UI
+  }
+}
+
 function AIChatWidget() {
-  const [isOpen, setIsOpen] = useState(false)
+  const savedSession = loadSession()
+  const [isOpen, setIsOpen] = useState(savedSession?.isOpen ?? false)
   const [isTyping, setIsTyping] = useState(false)
   const [isFooterVisible, setIsFooterVisible] = useState(false)
   const [hasFloatingConflict, setHasFloatingConflict] = useState(
     () => typeof document !== 'undefined' && Boolean(document.querySelector('.admin-toast')),
   )
-  const [unreadCount, setUnreadCount] = useState(1)
-  const [messages, setMessages] = useState([])
-  const messageIdRef = useRef(0)
-  const isOpenRef = useRef(false)
+  const [unreadCount, setUnreadCount] = useState(savedSession?.unreadCount ?? 1)
+  const [messages, setMessages] = useState(savedSession?.messages ?? [])
+  const messageIdRef = useRef(
+    savedSession?.messages?.length
+      ? Math.max(...savedSession.messages.map((m) => m.id))
+      : 0,
+  )
+  const isOpenRef = useRef(savedSession?.isOpen ?? false)
   const timersRef = useRef(new Set())
+
+  // Lưu lại session mỗi khi tin nhắn/trạng thái mở/số tin chưa đọc thay đổi
+  useEffect(() => {
+    saveSession({ messages, isOpen, unreadCount })
+  }, [messages, isOpen, unreadCount])
 
   const nextMessageId = () => {
     messageIdRef.current += 1
@@ -74,19 +110,35 @@ function AIChatWidget() {
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [isOpen])
 
-  const appendMockResponse = (query, forceSuccess = false) => {
-    const response = createMockResponse(query, forceSuccess)
-    setMessages((current) => [
-      ...current,
-      {
-        id: nextMessageId(),
-        role: 'assistant',
-        query,
-        ...response,
-      },
-    ])
-    setIsTyping(false)
-    if (!isOpenRef.current) setUnreadCount((count) => count + 1)
+  // Gọi API chatbot thật (BE -> Gemini) thay vì dữ liệu mock
+  const appendAIResponse = async (query) => {
+    try {
+      const response = await sendChatMessage(query)
+      setMessages((current) => [
+        ...current,
+        {
+          id: nextMessageId(),
+          role: 'assistant',
+          query,
+          ...response, // { text, documents }
+        },
+      ])
+    } catch (err) {
+      setMessages((current) => [
+        ...current,
+        {
+          id: nextMessageId(),
+          role: 'assistant',
+          query,
+          state: 'error',
+          text: 'Không thể kết nối với trợ lý AI. Bạn có thể thử gửi lại yêu cầu.',
+          documents: [],
+        },
+      ])
+    } finally {
+      setIsTyping(false)
+      if (!isOpenRef.current) setUnreadCount((count) => count + 1)
+    }
   }
 
   const sendMessage = (text) => {
@@ -101,14 +153,14 @@ function AIChatWidget() {
         message.id === userMessageId ? { ...message, status: 'sent' } : message
       )))
       setIsTyping(true)
-      schedule(() => appendMockResponse(text), 850)
+      appendAIResponse(text)
     }, 320)
   }
 
   const retryMessage = (message) => {
     setMessages((current) => current.filter((item) => item.id !== message.id))
     setIsTyping(true)
-    schedule(() => appendMockResponse(message.query || 'Gợi ý tài liệu', true), 850)
+    appendAIResponse(message.query || 'Gợi ý tài liệu')
   }
 
   const openChat = () => {

@@ -18,7 +18,7 @@ const viewList = (documents) => ({
             ? { id: document.course.id, course_name: document.course.course_name }
             : null,
         uploader: document.uploader
-            ? { id: document.uploader.id, username: document.uploader.username }
+            ? { id: document.uploader.id, username: document.uploader.username, avatar: document.uploader.avatar }
             : null,
     })),
 });
@@ -40,7 +40,7 @@ const viewItem = (document) => ({
         ? { id: document.course.id, course_name: document.course.course_name }
         : null,
     uploader: document.uploader
-        ? { id: document.uploader.id, username: document.uploader.username }
+        ? { id: document.uploader.id, username: document.uploader.username, avatar: document.uploader.avatar }
         : null,
 });
 
