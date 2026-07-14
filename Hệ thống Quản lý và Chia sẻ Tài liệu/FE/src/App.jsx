@@ -6,6 +6,7 @@ import MyLibraryPage from './pages/MyLibraryPage'
 import ProfilePage from './pages/ProfilePage'
 import UploadPage from './pages/UploadPage'
 import UploadSuccessPage from './pages/UploadSuccessPage'
+import SearchResultsPage from './pages/SearchResultsPage'
 import AdminPage from './pages/AdminPage'
 import FooterInfoPage from './pages/FooterInfoPage'
 import AIChatWidget from './components/ai-chat/AIChatWidget'
@@ -49,6 +50,10 @@ function RoutedPage({ pathname }) {
 
   if (routedPathname === '/upload/success') {
     return <UploadSuccessPage />
+  }
+
+  if (routedPathname === '/search') {
+    return <SearchResultsPage />
   }
 
   if (['/about', '/team', '/project', '/faq', '/contact', '/terms'].includes(routedPathname)) {
