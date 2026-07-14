@@ -72,6 +72,22 @@ body,
   transition: background 240ms ease, color 240ms ease;
 }
 
+/* Ẩn icon "hiện mật khẩu" / autofill mặc định của trình duyệt (Edge, Chrome...)
+   để không bị chồng lên nút con mắt tự code trong các form đổi/nhập mật khẩu */
+input[type='password']::-ms-reveal,
+input[type='password']::-ms-clear {
+  display: none;
+}
+
+input[type='password']::-webkit-credentials-auto-fill-button,
+input[type='password']::-webkit-strong-password-auto-fill-button {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+}
+
 * {
   box-sizing: border-box;
 }

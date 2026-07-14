@@ -80,6 +80,7 @@ function ChangePasswordForm() {
                   type={showOldPassword ? 'text' : 'password'}
                   value={oldPassword}
                   onChange={(e) => setOldPassword(e.target.value)}
+                  autoComplete="current-password"
                   required
                   style={{ paddingRight: '40px', width: '100%' }}
                 />
@@ -112,6 +113,7 @@ function ChangePasswordForm() {
                   type={showNewPassword ? 'text' : 'password'}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
                   required
                   style={{ paddingRight: '40px', width: '100%' }}
                 />
@@ -144,6 +146,7 @@ function ChangePasswordForm() {
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
                   required
                   style={{ paddingRight: '40px', width: '100%' }}
                 />
