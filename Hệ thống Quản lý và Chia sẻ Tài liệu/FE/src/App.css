@@ -244,6 +244,30 @@
   color: var(--text);
 }
 
+.avatar,
+.account-dropdown__avatar,
+.library-profile__avatar,
+.profile-avatar,
+.document-review-row__avatar,
+.document-author-card__profile span,
+.team-member__avatar {
+  overflow: hidden;
+}
+
+.avatar img,
+.account-dropdown__avatar img,
+.library-profile__avatar img,
+.profile-avatar img,
+.document-review-row__avatar img,
+.document-author-card__profile span img,
+.team-member__avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
 .button--wide {
   min-width: 184px;
 }
