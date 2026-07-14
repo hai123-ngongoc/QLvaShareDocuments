@@ -10,14 +10,13 @@ function UploadCallout() {
         <a href="#upload-document">Tìm hiểu cách hoạt động</a>
       </div>
 
-      <label className="upload-dropzone" id="upload-document">
-        <input type="file" multiple />
+      <a className="upload-dropzone" href="/upload" id="upload-document">
         <span className="upload-dropzone__icon" aria-hidden="true">
           ↑
         </span>
         <strong>Upload tài liệu</strong>
         <span>đề cương, slide, cheat sheet, bài tập...</span>
-      </label>
+      </a>
     </section>
   )
 }

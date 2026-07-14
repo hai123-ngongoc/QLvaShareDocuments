@@ -72,8 +72,6 @@ function UploadPage() {
     return courses.filter((course) => course.faculty === faculty)
   }, [courses, faculty])
   const [courseId, setCourseId] = useState(filteredCourses[0]?.id ?? '')
-  const [tagInput, setTagInput] = useState('')
-  const [tags, setTags] = useState([])
 
   const activeCourseId = filteredCourses.some((course) => course.id === Number(courseId))
     ? courseId
@@ -110,34 +108,12 @@ function UploadPage() {
     setCourseId(nextCourses[0]?.id ?? '')
   }
 
-  function addTag() {
-    const nextTag = tagInput.trim()
-
-    if (!nextTag || tags.includes(nextTag)) return
-
-    setTags((currentTags) => [...currentTags, nextTag])
-    setTagInput('')
-  }
-
-  function handleTagKeyDown(event) {
-    if (event.key !== 'Enter') return
-
-    event.preventDefault()
-    addTag()
-  }
-
-  function removeTag(tagToRemove) {
-    setTags((currentTags) => currentTags.filter((tag) => tag !== tagToRemove))
-  }
-
   function resetForm() {
     setSelectedFile(null)
     setTitle('')
     setDescription('')
     setFaculty(faculties[0] ?? '')
     setCourseId(courses.find((course) => course.faculty === faculties[0])?.id ?? '')
-    setTagInput('')
-    setTags([])
   }
 
   function handleCancel() {
@@ -164,7 +140,6 @@ function UploadPage() {
 
     setIsSubmitting(true)
 
-    // TODO: cần backend bổ sung bảng tags nếu muốn chuẩn hóa thay vì lưu chuỗi (hiện chưa gửi tags lên).
     const formData = new FormData()
     formData.append('title', title.trim())
     formData.append('description', description)
@@ -314,40 +289,6 @@ function UploadPage() {
                 </span>
               </label>
             </div>
-
-            <label className="upload-field">
-              <span>Thẻ (tags)</span>
-              <input
-                type="text"
-                value={tagInput}
-                onBlur={addTag}
-                onChange={(event) => setTagInput(event.target.value)}
-                onKeyDown={handleTagKeyDown}
-                placeholder="Nhập thẻ và nhấn Enter..."
-              />
-            </label>
-
-            {tags.length > 0 && (
-              <div className="upload-page__tags" aria-label="Danh sách thẻ">
-                {tags.map((tag) => (
-                  <button
-                    className="upload-page__tag"
-                    type="button"
-                    key={tag}
-                    onClick={() => removeTag(tag)}
-                  >
-                    <span>{tag}</span>
-                    <X size={13} strokeWidth={2.2} aria-hidden="true" />
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <p className="upload-page__tag-note">
-              Thêm thẻ giúp người khác tìm tài liệu của bạn dễ hơn. Ví dụ:
-              React, SQL, Ôn thi cuối kỳ, Bài tập có lời giải.
-              Hiện schema chưa có bảng lưu tags, phần này đang là UI tạm.
-            </p>
 
             <input type="hidden" name="course_id" value={selectedCourse?.id ?? ''} />
           </section>

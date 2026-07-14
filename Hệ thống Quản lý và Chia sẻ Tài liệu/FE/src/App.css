@@ -2491,12 +2491,18 @@ html:not(.light-theme) .course-list-card .document-card__meta {
   background: #fff;
   color: #050816;
   text-align: center;
+  text-decoration: none;
   cursor: pointer;
   box-shadow: var(--soft-shadow);
   transition:
     background 0.2s ease,
     filter 0.2s ease,
     transform 0.2s ease;
+}
+
+.upload-dropzone,
+.upload-dropzone * {
+  text-decoration: none;
 }
 
 .upload-dropzone::after {
