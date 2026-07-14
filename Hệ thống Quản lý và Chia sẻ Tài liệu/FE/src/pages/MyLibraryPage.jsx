@@ -10,7 +10,7 @@ import { getAverageRating } from '../services/ratingService'
 import { getInitials } from '../utils/userDisplay'
 import { API_URL } from '../services/api'
 
-const tabs = ['Tài liệu của tôi', 'Đã lưu', 'Hoạt động', 'Cài đặt']
+const tabs = ['Tài liệu của tôi', 'Đã lưu']
 
 const statusLabels = {
   approved: 'Đã duyệt',
@@ -54,40 +54,6 @@ async function attachRealRatings(documents) {
     ...ratingsById[document.id],
   }))
 }
-
-const activities = [
-  {
-    id: 1,
-    icon: '⬆',
-    content: 'Bạn đã upload React Hooks - Hướng dẫn sử dụng useState & useEffect',
-    time: '2 giờ trước',
-  },
-  {
-    id: 2,
-    icon: '♥',
-    content: 'Bạn đã lưu Cơ sở dữ liệu - Đề cương ôn tập cuối kỳ',
-    time: 'Hôm qua, 14:32',
-  },
-  {
-    id: 3,
-    icon: '★',
-    content: 'Bạn đã đánh giá Mạng máy tính - Slide TCP/IP',
-    time: '2 ngày trước',
-  },
-  {
-    id: 4,
-    iconComponent: Download,
-    content: 'Bạn đã tải Giải tích - Công thức ôn tập cuối kỳ',
-    time: '3 ngày trước',
-  },
-]
-
-const settings = [
-  { label: 'Hồ sơ công khai', value: 'Đang bật' },
-  { label: 'Thông báo tài liệu', value: 'Email hằng ngày' },
-  { label: 'Ngôn ngữ', value: 'Tiếng Việt' },
-  { label: 'Dung lượng đã dùng', value: '1.8 GB / 5 GB' },
-]
 
 function MyLibraryPage() {
   const [activeTab, setActiveTab] = useState(tabs[0])
@@ -177,7 +143,6 @@ function MyLibraryPage() {
   }, [activeTab, myDocuments, savedDocuments, coursesById])
 
   const showDocuments = activeTab === 'Tài liệu của tôi' || activeTab === 'Đã lưu'
-  const showActivity = activeTab === 'Tài liệu của tôi' || activeTab === 'Hoạt động'
   const isSavedTab = activeTab === 'Đã lưu'
 
   if (loading || !profile) return null // TODO: thay bằng skeleton/loading UI nếu muốn
@@ -284,40 +249,6 @@ function MyLibraryPage() {
                     {(document.download_count ?? 0).toLocaleString()} lượt tải
                   </span>
                 </div>
-              </article>
-            ))}
-          </section>
-        )}
-
-        {showActivity && (
-          <section className="library-activity" aria-labelledby="library-activity-title">
-            <h2 id="library-activity-title">Hoạt động gần đây</h2>
-            <div className="library-activity-list">
-              {activities.map((activity) => (
-                <article className="library-activity-item" key={activity.id}>
-                  <span className="library-activity-item__icon" aria-hidden="true">
-                    {activity.iconComponent ? (
-                      <activity.iconComponent size={16} strokeWidth={2.2} />
-                    ) : (
-                      activity.icon
-                    )}
-                  </span>
-                  <div>
-                    <p>{activity.content}</p>
-                    <span>{activity.time}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {activeTab === 'Cài đặt' && (
-          <section className="library-settings" aria-label="Cài đặt thư viện">
-            {settings.map((setting) => (
-              <article className="document-card library-setting-card" key={setting.label}>
-                <span>{setting.label}</span>
-                <strong>{setting.value}</strong>
               </article>
             ))}
           </section>
