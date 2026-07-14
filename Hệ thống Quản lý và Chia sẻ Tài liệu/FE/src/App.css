@@ -1997,6 +1997,21 @@ html:not(.light-theme) .course-list-card .document-card__meta {
   color: var(--danger);
 }
 
+.admin-ai-summary-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-ai-summary-indicator.is-done {
+  color: var(--success);
+}
+
+.admin-ai-summary-indicator.is-empty {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
 .library-activity {
   margin-top: 34px;
 }
@@ -3497,7 +3512,7 @@ html:not(.light-theme) .course-list-card .document-card__meta {
 }
 
 .admin-table--documents {
-  min-width: 1180px;
+  min-width: 1290px;
   table-layout: fixed;
 }
 
@@ -3534,7 +3549,7 @@ html:not(.light-theme) .course-list-card .document-card__meta {
 .admin-table--documents:not(.admin-table--pending-documents) th:nth-child(6),
 .admin-table--documents:not(.admin-table--pending-documents) td:nth-child(6) {
   position: sticky;
-  right: 150px;
+  right: 260px;
   z-index: 20;
   width: 130px;
   min-width: 130px;
@@ -3546,9 +3561,27 @@ html:not(.light-theme) .course-list-card .document-card__meta {
   z-index: 32;
 }
 
+.admin-table--documents:not(.admin-table--pending-documents) th:nth-child(7),
+.admin-table--documents:not(.admin-table--pending-documents) td:nth-child(7) {
+  position: sticky;
+  right: 150px;
+  z-index: 20;
+  width: 110px;
+  min-width: 110px;
+  background: var(--card);
+  box-shadow: -10px 0 16px -14px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  text-align: center;
+}
+
+.admin-table--documents:not(.admin-table--pending-documents) th:nth-child(7) {
+  z-index: 32;
+}
+
 .admin-table--documents tbody tr:hover td:first-child,
 .admin-table--documents tbody tr:hover td:last-child,
-.admin-table--documents:not(.admin-table--pending-documents) tbody tr:hover td:nth-child(6) {
+.admin-table--documents:not(.admin-table--pending-documents) tbody tr:hover td:nth-child(6),
+.admin-table--documents:not(.admin-table--pending-documents) tbody tr:hover td:nth-child(7) {
   background: color-mix(in srgb, var(--card-raised) 54%, var(--card));
 }
 
@@ -4143,6 +4176,10 @@ html:not(.light-theme) .course-list-card .document-card__meta {
 
 .admin-preview-dialog__description p {
   margin: 6px 0 0;
+}
+
+.admin-preview-dialog__summary button {
+  margin-top: 12px;
 }
 
 .admin-preview-dialog__actions {

@@ -18,6 +18,8 @@ import {
   Plus,
   Search,
   Shield,
+  Sparkles,
+  Circle,
   Trash2,
   Unlock,
   Users,
@@ -49,7 +51,7 @@ import {
   adminDeleteCourseApi,
   postAdminLog,
 } from '../services/adminService'
-import { fetchPreviewBlob, downloadDocumentFile } from '../services/documentService'
+import { fetchPreviewBlob, downloadDocumentFile, summarizeDocument as summarizeDocumentApi } from '../services/documentService'
 
 const DOCUMENTS_PER_PAGE = 6
 const USERS_PER_PAGE = 6
@@ -499,6 +501,27 @@ function AdminPage() {
     } catch (err) {
       showToast(`Lỗi: ${err.message}`)
     }
+  }
+
+  // Gọi AI tạo (hoặc tạo lại) tóm tắt cho tài liệu, đồng bộ cả bảng danh sách
+  // lẫn dialog xem chi tiết đang mở (nếu có).
+  const summarizeDocument = (document) => {
+    runAdminAction(
+      `summarize-document-${document.id}`,
+      async () => {
+        const { ai_summary } = await summarizeDocumentApi(document.id)
+        setAdminDocuments((prev) => prev.map((d) => d.id === document.id ? { ...d, ai_summary } : d))
+        setPreviewDocument((prev) => (prev && prev.id === document.id ? { ...prev, ai_summary } : prev))
+        await writeAdminLog({
+          targetUserId: document.user_id,
+          action: 'generate_document_summary',
+          before: { ai_summary: document.ai_summary || null },
+          after: { ai_summary },
+          reason: 'Tạo tóm tắt AI cho tài liệu',
+        })
+      },
+      'Đã tạo tóm tắt AI.',
+    )
   }
 
   // Tải file tài liệu đang xem trước. KHÔNG dùng thẳng <a href={file_url} download>:
@@ -1239,6 +1262,7 @@ function AdminPage() {
                       <th>Ngày đăng</th>
                       <th>Lượt xem/tải</th>
                       <th>Trạng thái</th>
+                      <th>Tóm tắt AI</th>
                       <th>Thao tác</th>
                     </tr>
                   </thead>
@@ -1276,6 +1300,18 @@ function AdminPage() {
                             className={`status-badge ${statusClassNames[document.status]}`}
                           >
                             {statusLabels[document.status]}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`admin-ai-summary-indicator ${document.ai_summary?.trim() ? 'is-done' : 'is-empty'}`}
+                            title={document.ai_summary?.trim() ? 'Đã có tóm tắt AI' : 'Chưa có tóm tắt AI'}
+                          >
+                            {document.ai_summary?.trim() ? (
+                              <CheckCircle size={18} strokeWidth={2} />
+                            ) : (
+                              <Circle size={18} strokeWidth={2} />
+                            )}
                           </span>
                         </td>
                         <td>
@@ -1845,6 +1881,24 @@ function AdminPage() {
             <div className="admin-preview-dialog__description">
               <strong>Mô tả đầy đủ</strong>
               <p>{previewDocument.description || 'Chưa có mô tả'}</p>
+            </div>
+
+            <div className="admin-preview-dialog__description admin-preview-dialog__summary">
+              <strong>Tóm tắt AI</strong>
+              <p>{previewDocument.ai_summary?.trim() || 'Chưa có tóm tắt AI cho tài liệu này.'}</p>
+              <button
+                className="button button--outline"
+                type="button"
+                disabled={processingAction === `summarize-document-${previewDocument.id}`}
+                onClick={() => summarizeDocument(previewDocument)}
+              >
+                <Sparkles size={16} strokeWidth={2} />
+                {processingAction === `summarize-document-${previewDocument.id}`
+                  ? 'Đang tạo tóm tắt...'
+                  : previewDocument.ai_summary?.trim()
+                    ? 'Tạo lại tóm tắt AI'
+                    : 'Tạo tóm tắt AI'}
+              </button>
             </div>
 
             <div className="admin-preview-dialog__actions">
