@@ -43,6 +43,12 @@ export function uploadDocument(formData) {
     return apiFetch('/v1/documents', { method: 'POST', body: formData })
 }
 
+// Yêu cầu backend gọi AI tạo tóm tắt cho tài liệu (chủ tài liệu hoặc admin).
+// Trả về { ai_summary } khi thành công.
+export function summarizeDocument(id) {
+    return apiFetch(`/v1/documents/${id}/summarize`, { method: 'POST' })
+}
+
 // GET /v1/documents/:id/view không yêu cầu token, trả về PDF stream (Content-Disposition: inline)
 // -> dùng thẳng URL này cho <iframe>/window.open, không cần qua apiFetch.
 export function getPreviewUrl(id) {

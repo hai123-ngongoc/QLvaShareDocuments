@@ -12,6 +12,7 @@ const Notification = require('../../../model/notification');
 const { fn, col } = require('sequelize');
 const { buildVisibilityWhere } = require('./visibility');
 const { resolveUploadedFilePath } = require('./fileStorage');
+const { generateSummary } = require('./aiSummary');
 
 // Tài liệu có được phép xem bởi req.user hay không (áp dụng cho get/viewFile/download)
 function canViewDocument(document, user) {
@@ -553,6 +554,35 @@ const adminCreateDocument = async (req, res, next) => {
     }
 }
 
+// Tạo tóm tắt AI cho tài liệu (chủ tài liệu hoặc admin mới được gọi)
+const summarize = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const document = await Document.findByPk(id);
+
+        if (!document) {
+            return res.status(404).json({ message: 'Tài liệu không tồn tại' });
+        }
+
+        if (req.user.role !== 'admin' && document.user_id !== req.user.id) {
+            return res.status(403).json({ message: 'Bạn không có quyền tạo tóm tắt cho tài liệu này' });
+        }
+
+        const summary = await generateSummary(document);
+
+        document.ai_summary = summary;
+        await document.save();
+
+        return res.status(200).json({ ai_summary: summary });
+    } catch (error) {
+        if (error.status) {
+            return res.status(error.status).json({ message: error.message });
+        }
+        next(error);
+    }
+};
+
 module.exports = {
     list,
     listPublicNew,
@@ -567,5 +597,6 @@ module.exports = {
     getPendingDocuments,
     approveDocument,
     rejectDocument,
-    adminCreateDocument
+    adminCreateDocument,
+    summarize
 };

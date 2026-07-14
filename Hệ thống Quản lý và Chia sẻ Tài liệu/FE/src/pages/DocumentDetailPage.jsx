@@ -13,7 +13,7 @@ import {
 import Footer from '../components/layout/Footer'
 import Header from '../components/layout/Header'
 import useAuthModal from '../hooks/useAuthModal'
-import { getDocument, getPreviewUrl, downloadDocumentFile } from '../services/documentService'
+import { getDocument, getPreviewUrl, downloadDocumentFile, summarizeDocument } from '../services/documentService'
 import { getCourse } from '../services/courseService'
 import { getRatingsForDocument, getAverageRating, addRating } from '../services/ratingService'
 import { checkFavorite, addFavorite, removeFavorite } from '../services/favoriteService'
@@ -81,6 +81,8 @@ function DocumentDetailPage() {
   const [comment, setComment] = useState('')
   const [reviewError, setReviewError] = useState('')
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+  const [summarizing, setSummarizing] = useState(false)
+  const [summarizeError, setSummarizeError] = useState('')
 
   useEffect(() => {
     setDocument(null)
@@ -149,6 +151,21 @@ function DocumentDetailPage() {
     document.ai_summary?.trim() || 'Chưa có tóm tắt AI cho tài liệu này.'
   const currentUserId = user?.id
   const canReview = isAuthenticated && !ratings.some((review) => review.user_id === currentUserId)
+  const canSummarize =
+    isAuthenticated && (user?.role === 'admin' || currentUserId === document.user_id)
+
+  const handleSummarize = async () => {
+    setSummarizing(true)
+    setSummarizeError('')
+    try {
+      const { ai_summary } = await summarizeDocument(documentId)
+      setDocument((prev) => (prev ? { ...prev, ai_summary } : prev))
+    } catch (error) {
+      setSummarizeError(error.message || 'Có lỗi xảy ra, thử lại sau.')
+    } finally {
+      setSummarizing(false)
+    }
+  }
 
   const openFile = () => {
     window.open(previewUrl, '_blank', 'noopener,noreferrer')
@@ -379,6 +396,19 @@ function DocumentDetailPage() {
         <section className="document-ai-summary" aria-labelledby="document-summary-title">
           <h2 id="document-summary-title">Tóm tắt AI</h2>
           <p>{aiSummaryText}</p>
+          {canSummarize && (
+            <>
+              <button
+                className="button button--outline"
+                type="button"
+                onClick={handleSummarize}
+                disabled={summarizing}
+              >
+                {summarizing ? 'Đang tạo tóm tắt...' : 'Tạo tóm tắt AI'}
+              </button>
+              {summarizeError && <p className="document-ai-summary__error">{summarizeError}</p>}
+            </>
+          )}
         </section>
 
         <section className="document-reviews" aria-labelledby="document-reviews-title">

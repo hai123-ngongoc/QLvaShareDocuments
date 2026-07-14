@@ -2876,6 +2876,16 @@ html:not(.light-theme) .course-list-card .document-card__meta {
   line-height: 1.7;
 }
 
+.document-ai-summary button {
+  margin-top: 14px;
+}
+
+.document-ai-summary__error {
+  margin: 10px 0 0;
+  color: #ef4444;
+  font-size: 13px;
+}
+
 .document-reviews {
   margin-top: 22px;
 }

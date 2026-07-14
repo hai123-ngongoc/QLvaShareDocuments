@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { list, listPublicNew, get, create, remove, update, download, search, viewFile, getAverageRating, getPendingDocuments, approveDocument, rejectDocument, adminCreateDocument } = require('./controller');
+const { list, listPublicNew, get, create, remove, update, download, search, viewFile, getAverageRating, getPendingDocuments, approveDocument, rejectDocument, adminCreateDocument, summarize } = require('./controller');
 const upload = require('../middleware/upload');
 const verifyToken = require('../middleware/verifyToken');
 const optionalAuth = require('../middleware/optionalAuth');
@@ -31,6 +31,9 @@ route.delete('/:id', verifyToken, remove,);
 
 //cập nhật tài liệu
 route.put('/:id', verifyToken, update,);
+
+//tạo tóm tắt AI cho tài liệu (chủ tài liệu hoặc admin)
+route.post('/:id/summarize', verifyToken, summarize);
 
 //xem tài liệu
 route.get("/:id/view", optionalAuth, viewFile);
