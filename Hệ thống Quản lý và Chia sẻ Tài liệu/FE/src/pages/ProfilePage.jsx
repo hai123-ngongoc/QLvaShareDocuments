@@ -3,6 +3,7 @@ import Header from '../components/layout/Header'
 import ProfileForm from '../components/profile/ProfileForm'
 import ProfileSidebar from '../components/profile/ProfileSidebar'
 import ChangePasswordForm from '../components/profile/ChangePasswordForm'
+import NotificationPanel from '../components/profile/NotificationPanel'
 import { getProfile } from '../services/authService'
 import { getDocuments } from '../services/documentService'
 import { getFavorites } from '../services/favoriteService'
@@ -80,16 +81,7 @@ function ProfilePage() {
           {activeTab === 'Đổi mật khẩu' && (
             <ChangePasswordForm />
           )}
-          {activeTab === 'Thông báo' && (
-            <section className="profile-panel" aria-labelledby="notification-title">
-              <div className="profile-panel__heading">
-                <h2 id="notification-title">Thông báo</h2>
-              </div>
-              <div style={{ padding: '20px 0', color: 'var(--text-soft)' }}>
-                Không có thông báo mới nào.
-              </div>
-            </section>
-          )}
+          {activeTab === 'Thông báo' && <NotificationPanel />}
         </div>
       </main>
     </>

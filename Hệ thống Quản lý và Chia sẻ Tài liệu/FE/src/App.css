@@ -6391,6 +6391,32 @@ html:not(.light-theme) .course-list-card .document-card__meta {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   NOTIFICATION PANEL (tab "Thông báo" trong Profile)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.profile-panel__heading {
+  justify-content: space-between;
+}
+
+.notification-panel__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.notification-panel__list .notification-item {
+  padding: 16px 4px;
+}
+
+.notification-panel__list .notification-item__message {
+  font-size: 14px;
+  -webkit-line-clamp: 2;
+}
+
+.notification-panel__list .notification-empty {
+  padding: 60px 24px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    NOTIFICATION BELL & DROPDOWN
    ═══════════════════════════════════════════════════════════════════════ */
 
