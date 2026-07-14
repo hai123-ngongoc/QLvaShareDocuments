@@ -6459,15 +6459,15 @@ html:not(.light-theme) .course-list-card .document-card__meta {
   height: 38px;
   border: none;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
-  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .notification-bell-btn:hover {
-  background: color-mix(in srgb, var(--text-primary) 14%, transparent);
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
   transform: scale(1.05);
 }
 
@@ -6715,14 +6715,6 @@ html:not(.light-theme) .course-list-card .document-card__meta {
 
 .light-theme .notification-badge {
   box-shadow: 0 0 0 2px #fff;
-}
-
-.light-theme .notification-bell-btn {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.light-theme .notification-bell-btn:hover {
-  background: rgba(0, 0, 0, 0.1);
 }
 
 /* Responsive */
