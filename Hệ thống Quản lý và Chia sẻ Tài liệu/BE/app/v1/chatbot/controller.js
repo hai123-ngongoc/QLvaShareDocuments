@@ -1,11 +1,6 @@
 const { Op } = require('sequelize');
 const Document = require('../../../model/documents');
 const Course = require('../../../model/courses');
-
-// Model mặc định dùng gemini-2.5-flash-lite (miễn phí, nhanh).
-// Nếu muốn đổi model, chỉ cần set biến môi trường GEMINI_MODEL trong .env
-// Danh sách model + trạng thái free tier luôn thay đổi, kiểm tra tại:
-// https://ai.google.dev/gemini-api/docs/pricing
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
