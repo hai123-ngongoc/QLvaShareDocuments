@@ -4984,10 +4984,11 @@ html:not(.light-theme) .course-list-card .document-card__meta {
 }
 
 .upload-page__progress span {
-  width: 82%;
+  width: 0%;
   height: 100%;
   display: block;
   background: var(--gold);
+  transition: width 0.2s ease;
 }
 
 .upload-page__remove {

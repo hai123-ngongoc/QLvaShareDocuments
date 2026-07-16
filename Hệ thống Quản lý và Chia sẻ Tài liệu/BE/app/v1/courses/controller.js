@@ -57,11 +57,11 @@ const create = async (req, res, next) => {
     }
 };
 
-//sửa học phần (admin) - chỉ cho phép đổi tên, KHÔNG cho đổi ID/mã học phần
+//sửa học phần (admin) - cho phép đổi tên và khoa/ngành phụ trách, KHÔNG cho đổi ID/mã học phần
 const update = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { course_name } = req.body;
+        const { course_name, faculty } = req.body;
 
         const course = await Course.findByPk(id);
         if (!course) return res.status(404).json({ message: 'Học phần không tồn tại' });
@@ -70,9 +70,10 @@ const update = async (req, res, next) => {
             return res.status(400).json({ message: 'Vui lòng nhập tên học phần.' });
         }
 
-        // Chú ý: chỉ cho phép sửa course_name. Không nhận course_code/id từ client
+        // Chú ý: chỉ cho phép sửa course_name và faculty. Không nhận course_code/id từ client
         // để tránh đổi mã định danh của học phần đã có tài liệu gắn vào.
         course.course_name = course_name.trim();
+        course.faculty = faculty ? faculty.trim() : null;
         await course.save();
 
         return res.status(200).json(course);

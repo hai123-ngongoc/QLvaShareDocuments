@@ -45,8 +45,42 @@ export function getDocument(id) {
     return apiFetch(`/v1/documents/${id}`)
 }
 
-export function uploadDocument(formData) {
-    return apiFetch('/v1/documents', { method: 'POST', body: formData })
+// Upload có theo dõi tiến độ thật (fetch không hỗ trợ progress khi upload nên phải dùng XMLHttpRequest).
+export function uploadDocument(formData, onProgress) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        const token = localStorage.getItem('token')
+
+        xhr.open('POST', `${API_URL}/v1/documents`)
+        if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+        }
+
+        xhr.upload.onprogress = (event) => {
+            if (!event.lengthComputable || !onProgress) return
+            onProgress(Math.round((event.loaded / event.total) * 100))
+        }
+
+        xhr.onload = () => {
+            let data = null
+            try {
+                data = xhr.responseText ? JSON.parse(xhr.responseText) : null
+            } catch {
+                data = null
+            }
+
+            if (xhr.status >= 200 && xhr.status < 300) {
+                onProgress?.(100)
+                resolve(data)
+            } else {
+                reject(new Error((data && data.message) || `Lỗi ${xhr.status}`))
+            }
+        }
+
+        xhr.onerror = () => reject(new Error('Không thể kết nối tới máy chủ.'))
+
+        xhr.send(formData)
+    })
 }
 
 // Yêu cầu backend gọi AI tạo tóm tắt cho tài liệu (chủ tài liệu hoặc admin).

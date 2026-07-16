@@ -796,13 +796,13 @@ function AdminPage() {
     })
   }
 
-  // Sửa học phần: chỉ hiển thị ID (không sửa được) và tên học phần (sửa được).
+  // Sửa học phần: hiển thị ID (không sửa được), tên học phần và khoa/ngành (sửa được).
   const openEditCourseForm = (course) => {
     setCourseEditor({
       mode: 'edit',
       id: course.id,
       original: course,
-      values: { course_name: course.course_name },
+      values: { course_name: course.course_name, faculty: course.faculty || '' },
     })
   }
 
@@ -845,12 +845,15 @@ function AdminPage() {
         return
       }
       runAdminAction('edit-course', async () => {
-        await adminUpdateCourseApi(courseEditor.id, { course_name: values.course_name.trim() })
+        await adminUpdateCourseApi(courseEditor.id, {
+          course_name: values.course_name.trim(),
+          faculty: values.faculty.trim() || null,
+        })
         await writeAdminLog({
           targetUserId: null, action: 'update_course',
-          before: { course_name: courseEditor.original.course_name },
-          after: { course_name: values.course_name.trim() },
-          reason: 'Cập nhật tên học phần từ admin',
+          before: { course_name: courseEditor.original.course_name, faculty: courseEditor.original.faculty },
+          after: { course_name: values.course_name.trim(), faculty: values.faculty.trim() || null },
+          reason: 'Cập nhật tên học phần và khoa/ngành từ admin',
         })
         setCourseEditor(null)
         loadData()
@@ -2210,7 +2213,7 @@ function AdminPage() {
             {courseEditor.mode === 'create' ? (
               <p>Học phần mới sẽ được tạo và chưa có tài liệu nào gắn vào.</p>
             ) : (
-              <p>Chỉ có thể đổi tên học phần. ID học phần là cố định, không thể chỉnh sửa.</p>
+              <p>Có thể đổi tên học phần và khoa/ngành phụ trách. ID và mã học phần là cố định, không thể chỉnh sửa.</p>
             )}
 
             <form className="admin-form" onSubmit={saveCourse}>
@@ -2253,34 +2256,32 @@ function AdminPage() {
                 />
               </label>
 
-              {courseEditor.mode === 'create' && (
-                <>
-                  <label>
-                    Khoa/Ngành phụ trách
-                    <input
-                      value={courseEditor.values.faculty}
-                      onChange={(event) =>
-                        setCourseEditor((current) => ({
-                          ...current,
-                          values: { ...current.values, faculty: event.target.value },
-                        }))
-                      }
-                    />
-                  </label>
+              <label>
+                Khoa/Ngành phụ trách
+                <input
+                  value={courseEditor.values.faculty}
+                  onChange={(event) =>
+                    setCourseEditor((current) => ({
+                      ...current,
+                      values: { ...current.values, faculty: event.target.value },
+                    }))
+                  }
+                />
+              </label>
 
-                  <label>
-                    Mô tả
-                    <textarea
-                      value={courseEditor.values.description}
-                      onChange={(event) =>
-                        setCourseEditor((current) => ({
-                          ...current,
-                          values: { ...current.values, description: event.target.value },
-                        }))
-                      }
-                    />
-                  </label>
-                </>
+              {courseEditor.mode === 'create' && (
+                <label>
+                  Mô tả
+                  <textarea
+                    value={courseEditor.values.description}
+                    onChange={(event) =>
+                      setCourseEditor((current) => ({
+                        ...current,
+                        values: { ...current.values, description: event.target.value },
+                      }))
+                    }
+                  />
+                </label>
               )}
 
               <div className="admin-form__actions">
@@ -2645,7 +2646,7 @@ function AdminPage() {
                 disabled={!userDeleteReason.trim() || processingAction === 'delete-user'}
                 onClick={confirmDeleteUser}
               >
-                Delete
+                Soft delete
               </button>
             </div>
           </section>

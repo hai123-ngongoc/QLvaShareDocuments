@@ -48,6 +48,7 @@ function UploadPage() {
   const fileInputRef = useRef(null)
   const [courses, setCourses] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [errorMessage, setErrorMessage] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
@@ -89,6 +90,7 @@ function UploadPage() {
     if (!file) return
 
     setSelectedFile(file)
+    setUploadProgress(0)
     if (!title) {
       setTitle(file.name.replace(/\.[^.]+$/, ''))
     }
@@ -110,6 +112,7 @@ function UploadPage() {
 
   function resetForm() {
     setSelectedFile(null)
+    setUploadProgress(0)
     setTitle('')
     setDescription('')
     setFaculty(faculties[0] ?? '')
@@ -139,6 +142,7 @@ function UploadPage() {
     }
 
     setIsSubmitting(true)
+    setUploadProgress(0)
 
     const formData = new FormData()
     formData.append('title', title.trim())
@@ -147,7 +151,7 @@ function UploadPage() {
     formData.append('file', selectedFile) // tên field PHẢI là "file" (multer .single("file"))
 
     try {
-      await uploadDocument(formData)
+      await uploadDocument(formData, setUploadProgress)
 
       const params = new URLSearchParams({
         title: title.trim() || 'Tài liệu mới',
@@ -159,6 +163,7 @@ function UploadPage() {
       window.location.assign(`/upload/success?${params.toString()}`)
     } catch (error) {
       setIsSubmitting(false)
+      setUploadProgress(0)
       setErrorMessage(error.message || 'Có lỗi xảy ra khi upload, vui lòng thử lại.')
     }
   }
@@ -219,9 +224,19 @@ function UploadPage() {
                 </span>
                 <div className="upload-page__file-main">
                   <strong>{selectedFile.name}</strong>
-                  <span>{formatFileSize(selectedFile.size)}</span>
-                  <div className="upload-page__progress" aria-hidden="true">
-                    <span />
+                  <span>
+                    {formatFileSize(selectedFile.size)}
+                    {isSubmitting && ` · ${uploadProgress}%`}
+                  </span>
+                  <div
+                    className="upload-page__progress"
+                    role="progressbar"
+                    aria-label="Tiến độ upload"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={uploadProgress}
+                  >
+                    <span style={{ width: `${uploadProgress}%` }} />
                   </div>
                 </div>
                 <button
