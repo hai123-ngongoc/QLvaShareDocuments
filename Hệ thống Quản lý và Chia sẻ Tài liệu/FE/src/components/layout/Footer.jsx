@@ -22,7 +22,6 @@ const footerGroups = [
     title: 'Hỗ trợ',
     links: [
       { label: 'Câu hỏi thường gặp', href: '/faq' },
-      { label: 'Liên hệ', href: '/contact' },
       { label: 'Quy định sử dụng', href: '/terms' },
     ],
   },
