@@ -5,9 +5,11 @@ export async function getDocuments() {
     return data.items
 }
 
-export async function getPublicNewDocuments(page, pageSize = 8) {
+export async function getPublicNewDocuments(page, pageSize = 8, sortBy = 'newest') {
     try {
-        return await apiFetch(`/v1/documents/public/new?page=${page}&pageSize=${pageSize}`)
+        return await apiFetch(
+            `/v1/documents/public/new?page=${page}&pageSize=${pageSize}&sortBy=${sortBy}`
+        )
     } catch {
         // Tương thích với backend đang chạy phiên bản cũ chưa có route /public/new.
         // Admin có thể nhận cả pending/rejected từ route chung nên phải lọc approved tại đây.
@@ -15,6 +17,10 @@ export async function getPublicNewDocuments(page, pageSize = 8) {
         const publicDocuments = (data.items || [])
             .filter((document) => document.status === 'approved')
             .sort((first, second) => {
+                if (sortBy === 'popular') {
+                    const viewDifference = (second.view_count || 0) - (first.view_count || 0)
+                    return viewDifference || second.id - first.id
+                }
                 const dateDifference = new Date(second.created_at) - new Date(first.created_at)
                 return dateDifference || second.id - first.id
             })

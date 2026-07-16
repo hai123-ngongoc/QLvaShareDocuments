@@ -12,6 +12,9 @@ const viewList = (documents) => ({
         view_count: document.view_count,
         status: document.status,
         created_at: document.created_at,
+        // Chỉ có giá trị khi controller lấy kèm subquery (GET /v1/documents/public/new). Các route khác -> undefined, FE tự fallback về 0.
+        avg_rating: document.dataValues?.avg_rating != null ? Number(document.dataValues.avg_rating) : null,
+        rating_count: document.dataValues?.rating_count != null ? Number(document.dataValues.rating_count) : null,
         // Chỉ có giá trị khi controller include Course/User (GET /v1/documents, GET /v1/documents/:id).
         // Nếu controller không include, Sequelize instance sẽ không có 2 field này -> mặc định null, FE tự fallback.
         course: document.course

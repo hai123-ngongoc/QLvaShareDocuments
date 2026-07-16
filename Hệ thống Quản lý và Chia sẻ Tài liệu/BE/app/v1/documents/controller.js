@@ -9,7 +9,7 @@ const Download = require('../../../model/downloads');
 const Rating = require('../../../model/rating');
 const User = require('../../../model/auth');
 const Notification = require('../../../model/notification');
-const { fn, col } = require('sequelize');
+const { fn, col, literal } = require('sequelize');
 const { buildVisibilityWhere } = require('./visibility');
 const { resolveUploadedFilePath } = require('./fileStorage');
 const { generateSummary } = require('./aiSummary');
@@ -49,13 +49,25 @@ const listPublicNew = async (req, res, next) => {
             ? Math.min(requestedPageSize, 100)
             : 8;
 
+        // 'popular' = Xem nhiều nhất, mặc định 'newest' = Mới nhất
+        const sortBy = req.query.sortBy === 'popular' ? 'popular' : 'newest';
+        const order = sortBy === 'popular'
+            ? [['view_count', 'DESC'], ['id', 'DESC']]
+            : [['created_at', 'DESC'], ['id', 'DESC']];
+
         const { count, rows } = await Document.findAndCountAll({
             where: { status: 'approved' },
             include: [
                 { model: Course, as: 'course', attributes: ['id', 'course_name'] },
                 { model: User, as: 'uploader', attributes: { exclude: ['password'] } },
             ],
-            order: [['created_at', 'DESC'], ['id', 'DESC']],
+            attributes: {
+                include: [
+                    [literal('(SELECT AVG(`rating`) FROM `ratings` WHERE `ratings`.`document_id` = `Document`.`id`)'), 'avg_rating'],
+                    [literal('(SELECT COUNT(*) FROM `ratings` WHERE `ratings`.`document_id` = `Document`.`id`)'), 'rating_count'],
+                ],
+            },
+            order,
             limit: pageSize,
             offset: (page - 1) * pageSize,
             distinct: true,

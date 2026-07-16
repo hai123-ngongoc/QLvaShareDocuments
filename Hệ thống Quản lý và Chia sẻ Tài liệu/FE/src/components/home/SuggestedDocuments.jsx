@@ -1,7 +1,10 @@
 import { Download, Eye, FileArchive, FileText, FileType, Presentation } from 'lucide-react'
 import useRevealOnce from '../../hooks/useRevealOnce'
 
-const filters = ['Mới nhất', 'Xem nhiều nhất', 'Tất cả']
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Mới nhất' },
+  { value: 'popular', label: 'Xem nhiều nhất' },
+]
 
 function renderDocumentIcon(fileType) {
   if (fileType === 'ppt') return <Presentation size={18} strokeWidth={2} />
@@ -26,6 +29,8 @@ function SuggestedDocuments({
   getDocumentHref,
   variant = 'default',
   title = '✦ Gợi ý cho bạn',
+  sortBy = 'newest',
+  onSortChange,
 }) {
   const [sectionRef, isVisible] = useRevealOnce()
   const isCompact = variant === 'compact'
@@ -48,13 +53,15 @@ function SuggestedDocuments({
         <h2 id={headingId}>{title}</h2>
         {showFilters && (
           <div className="filter-chips" aria-label="Bộ lọc tài liệu">
-            {filters.map((filter, index) => (
+            {SORT_OPTIONS.map((option) => (
               <button
-                className={`chip ${index === 0 ? 'chip--active' : ''}`}
+                className={`chip ${option.value === sortBy ? 'chip--active' : ''}`}
                 type="button"
-                key={`${filter}-${index}`}
+                key={option.value}
+                aria-pressed={option.value === sortBy}
+                onClick={() => onSortChange?.(option.value)}
               >
-                {filter}
+                {option.label}
               </button>
             ))}
           </div>

@@ -17,6 +17,7 @@ const DOCUMENTS_PER_PAGE = 8
 function HomePage() {
   const [documents, setDocuments] = useState([])
   const [documentPage, setDocumentPage] = useState(1)
+  const [documentSortBy, setDocumentSortBy] = useState('newest')
   const [totalDocuments, setTotalDocuments] = useState(0)
   const [courses, setCourses] = useState([])
   const [stats, setStats] = useState({ documents: 0, courses: 0, users: 0 })
@@ -29,7 +30,7 @@ function HomePage() {
   useEffect(() => {
     let isCurrentRequest = true
 
-    getPublicNewDocuments(documentPage, DOCUMENTS_PER_PAGE)
+    getPublicNewDocuments(documentPage, DOCUMENTS_PER_PAGE, documentSortBy)
       .then((data) => {
         if (!isCurrentRequest) return
         setDocuments(data.items || [])
@@ -40,7 +41,13 @@ function HomePage() {
     return () => {
       isCurrentRequest = false
     }
-  }, [documentPage])
+  }, [documentPage, documentSortBy])
+
+  const handleDocumentSortChange = (nextSortBy) => {
+    if (nextSortBy === documentSortBy) return
+    setDocumentSortBy(nextSortBy)
+    setDocumentPage(1)
+  }
 
   return (
     <>
@@ -75,12 +82,14 @@ function HomePage() {
         <UploadCallout />
 
         <SuggestedDocuments
-          title="Tài liệu công khai mới"
+          title="Có thể bạn sẽ quan tâm"
           documents={documents}
           currentPage={documentPage}
           pageSize={DOCUMENTS_PER_PAGE}
           totalItems={totalDocuments}
           onPageChange={setDocumentPage}
+          sortBy={documentSortBy}
+          onSortChange={handleDocumentSortChange}
           getDocumentHref={(document) => `/documents/${document.id}`}
         />
 
