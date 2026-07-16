@@ -1,11 +1,9 @@
 import {
   Bell,
-  Building2,
   Lock,
   LogOut,
   Mail,
   Pencil,
-  School,
 } from 'lucide-react'
 import { API_URL } from '../../services/api'
 import useAuthModal from '../../hooks/useAuthModal'
@@ -20,10 +18,6 @@ function ProfileSidebar({ profile, stats, activeTab, onTabChange }) {
   const { logout } = useAuthModal()
   const profileInfo = [
     { label: profile.email || 'Chưa có email', icon: Mail },
-    // TODO: cần backend bổ sung school trong bảng users/profile, tạm dùng fallback.
-    { label: profile.school || 'Chưa có dữ liệu', icon: School },
-    // TODO: cần backend bổ sung faculty trong bảng users/profile, tạm dùng fallback.
-    { label: profile.faculty || 'Chưa có dữ liệu', icon: Building2 },
   ]
   const statItems = [
     { label: 'Tài liệu đã upload', value: stats.uploadedCount.toLocaleString() },

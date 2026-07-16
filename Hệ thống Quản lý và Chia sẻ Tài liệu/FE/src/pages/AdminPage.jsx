@@ -1547,7 +1547,6 @@ function AdminPage() {
               <div className="admin-panel__heading admin-panel__heading--split">
                 <div>
                   <h2 id="admin-users-title">Danh sách người dùng</h2>
-                  <p>Xem chi tiết, chỉnh sửa trạng thái/role, reset mật khẩu và xoá tài khoản vi phạm.</p>
                 </div>
                 <div className="admin-heading-actions">
                   <span>{filteredUsers.length.toLocaleString()} kết quả</span>
@@ -2372,10 +2371,6 @@ function AdminPage() {
             <h2 id="admin-user-form-title">
               {userEditor.mode === 'create' ? 'Thêm tài khoản user' : 'Sửa tài khoản user'}
             </h2>
-            <p>
-              Form chỉnh sửa không cho xem hoặc nhập mật khẩu. Họ tên hiển thị hiện tạm dùng
-              username vì DB chưa có cột full_name.
-            </p>
 
             <form className="admin-form" onSubmit={saveUser}>
               <label>
@@ -2449,13 +2444,6 @@ function AdminPage() {
                 </label>
               </div>
 
-              {userEditor.mode === 'create' && (
-                <p className="admin-form-note">
-                  Khi tạo user, backend nên gửi link đặt mật khẩu qua email hoặc tạo mật khẩu tạm
-                  thời đã hash. Không ghi mật khẩu/token vào log.
-                </p>
-              )}
-
               <div className="admin-form__actions">
                 <button className="button button--outline" type="button" onClick={() => setUserEditor(null)}>
                   Huỷ
@@ -2490,7 +2478,6 @@ function AdminPage() {
               <X size={18} strokeWidth={2} />
             </button>
             <h2 id="admin-user-detail-title">Chi tiết tài khoản</h2>
-            <p>Không hiển thị mật khẩu hiện tại. Email chỉ xem, không sửa qua endpoint cập nhật chung.</p>
 
             <div className="admin-detail-grid">
               <div className="admin-detail-row">
@@ -2635,10 +2622,6 @@ function AdminPage() {
               <X size={18} strokeWidth={2} />
             </button>
             <h2 id="admin-delete-user-title">Xoá tài khoản vi phạm?</h2>
-            <p>
-              Hệ thống sẽ ưu tiên soft delete. Admin không thể tự xoá tài khoản đang đăng nhập.
-              Vui lòng nhập lý do để lưu vào admin_logs.
-            </p>
             <label className="admin-danger-confirm">
               Lý do xoá tài khoản
               <textarea
@@ -2662,7 +2645,7 @@ function AdminPage() {
                 disabled={!userDeleteReason.trim() || processingAction === 'delete-user'}
                 onClick={confirmDeleteUser}
               >
-                Soft delete
+                Delete
               </button>
             </div>
           </section>

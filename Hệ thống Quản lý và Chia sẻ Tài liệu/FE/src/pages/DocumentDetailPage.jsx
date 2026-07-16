@@ -7,7 +7,6 @@ import {
   FileType,
   Heart,
   Presentation,
-  Share2,
   Star,
 } from 'lucide-react'
 import Footer from '../components/layout/Footer'
@@ -344,9 +343,6 @@ function DocumentDetailPage() {
                   onClick={requestFavorite}
                 >
                   <Heart size={18} strokeWidth={2} fill={isFavorite ? 'currentColor' : 'none'} />
-                </button>
-                <button className="icon-button" type="button" aria-label="Chia sẻ tài liệu">
-                  <Share2 size={18} strokeWidth={2} />
                 </button>
               </div>
 
